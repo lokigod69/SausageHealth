@@ -16,9 +16,9 @@ Sausage Health joins The Sausage Guy and Natural Mind Health, Panglao, in one pr
 
 ## Delivery state
 
-Private repository created: https://github.com/lokigod69/SausageHealth . Initial source push and CI confirmation are the final delivery check; consult `protocol/LOG.md` for the latest verified publication status.
+Private repository published: https://github.com/lokigod69/SausageHealth . Foundation source commit `8747ab2` passed GitHub Actions (run `34166745139`: frontend build and all 20 backend/integration tests). Foundation delivery is complete; shared hosting and real-data intake are the next milestone. See `protocol/LOG.md` for publication evidence.
 
-Local preview: http://127.0.0.1:5180 . API: loopback port 8080. Temporary development processes are listed in `.data/processes.json`; don't stop unrelated processes. Generated local credentials are in `.data/preview-login.json` (Git-ignored). Browser is signed in for review. Do not publish that local data directory.
+Local preview: http://127.0.0.1:5180 . API: loopback port 8080. Temporary development processes are listed in `.data/processes.json`; don't stop unrelated processes. Generated local credentials are in `.data/preview-login.json` (Git-ignored). The recovered preview tab is signed in for review, with the synthetic record removed and the dark overview open. Final day/dark overview screenshots show the empty collection. Do not publish that local data directory.
 
 ## Missing external inputs
 

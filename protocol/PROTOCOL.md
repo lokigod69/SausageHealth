@@ -2,7 +2,7 @@
 
 - Mode: **1 — Autopilot**, explicitly requested 8 September 2026.
 - Brain: `memory/` relative to the repository root.
-- Active workstream: **foundation**.
+- Active workstream: **shared intake pilot — hosting handoff**. Foundation completed and published with passing CI.
 - Owner: user, technical/AI executive. Operational partner: Moritz. Agent: Codex implementation coordinator.
 - Scope: inspect related projects, research the initial context, preserve the brief, establish visual direction, build/validate an intake-first private web foundation, publish private source repository, and prepare the deployment/data handoff.
 - Consultation: decide routine implementation and the initial visual direction under delegated autopilot. Preserve design history; do not fabricate explicit owner verdicts.

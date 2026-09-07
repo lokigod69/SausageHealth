@@ -2,7 +2,7 @@
 
 ## FOR YOU
 
-The first intake workspace is implemented and locally validated. Review the running local app. The next external inputs are the chosen private domain/server and Moritz’s account details; manual intake can launch before connecting AI or Loyverse.
+The first intake workspace is implemented, locally validated, and published to the private GitHub repository with passing CI. Review the running local app. The next external inputs are the chosen private domain/server and Moritz’s account details; manual intake can launch before connecting AI or Loyverse.
 
 Moritz’s first task is one recent daily sales report for each store, then a supplier receipt and a short store introduction. See `docs/MORITZ_START_HERE.md` for the hand-holding guide and first-week data list.
 

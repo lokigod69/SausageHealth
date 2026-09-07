@@ -26,4 +26,8 @@ Screenshots are in `design/evidence/`. They are evidence of local rendering and 
 
 ## External checks
 
-Private GitHub repository created as `lokigod69/SausageHealth`. Publication and CI outcome are recorded in the final protocol log after verification. Existing Loyverse/Sausage repositories were inspected read-only; their reported historical test counts were not rerun or adopted as this project’s evidence.
+Private GitHub repository published as `lokigod69/SausageHealth`, foundation source commit `8747ab2`. [GitHub Actions run 34166745139](https://github.com/lokigod69/SausageHealth/actions/runs/34166745139) completed successfully: production frontend build and all 20 backend/integration tests on the hosted Linux runner. This does not validate the unbuilt Docker image or a deployed HTTPS environment.
+
+After the development server restarted during formatting, a stale preview tab showed a connection error. A fresh tab successfully loaded the running local app and reused the session; final day/dark screenshots show the empty collection after synthetic-record cleanup. The working preview is left open for the owner.
+
+Existing Loyverse/Sausage repositories were inspected read-only; their reported historical test counts were not rerun or adopted as this project’s evidence.
