@@ -1,0 +1,15 @@
+.git
+.venv
+.data
+.env
+.env.*
+node_modules
+dist
+design
+docs
+memory
+protocol
+tests
+artifacts
+__pycache__
+.pytest_cache
