@@ -31,12 +31,14 @@ Scope: the roadmap, intake reliability, visual clarity, and readiness to share t
 
 The existing `beforeunload`/retry protections are useful but not an offline queue. The roadmap is a guide with explicit requirements, not an installed background task engine. The founder's competitor observations remain hypotheses until compared with real sales and product evidence.
 
-## Suggested domain arrangement
+## Domain arrangement
 
-Keep `thesausageguy.shop` as the public customer site. Put the separate private app at `ops.thesausageguy.shop`, subject to the owner's final hostname/host selection. An ordinary Admin link can connect the sites later; merging authentication or internal data into the public Next.js site is unnecessary for the pilot.
+Keep `thesausageguy.shop` as the public customer site. The owner subsequently confirmed `ops.thesausageguy.shop` for the separate private app on 9 September. The server is still unselected. An ordinary Admin link can connect the sites later; merging authentication or internal data into the public Next.js site is unnecessary for the pilot.
 
 Read-only DNS inspection on 9 September 2026 returned Porkbun nameservers (`fortaleza`, `maceio`, `salvador`, `curitiba.ns.porkbun.com`) and a Vercel DNS target for `www`. The public site's README also describes Vercel deployment. This verifies routing clues, not access to either account. The missing `SAUSAGE/PROJECT_STATE.md` path was not treated as evidence.
 
 Porkbun supports a subdomain in the Host field of a DNS record; no second domain registration is needed for this arrangement. A server that stores the database and files is still needed. [Porkbun DNS instructions](https://kb.porkbun.com/article/231-how-to-add-dns-records-on-porkbun), [Caddy HTTPS prerequisites](https://caddyserver.com/docs/automatic-https).
 
 No DNS records, related repositories, production services, AI spending, or customer channels were changed in this review.
+
+Owner follow-up: invitation/password-reset copy and motivational slogans were rejected and removed. Functional labels replace chapter/pep-talk copy; Help is optional and deployment details are owner-only. This preserves the original island and the roadmap's evidence requirements. Moritz's contact was supplied privately and one authorized first-records email was sent; this is not a hosted account or a pilot launch.

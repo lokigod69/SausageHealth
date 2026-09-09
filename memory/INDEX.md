@@ -1,6 +1,7 @@
 # Sausage Health memory
 
 - [STATE.md](STATE.md): current verified state and missing external inputs.
+- Private contact/sent-email handoff: Git-ignored `.data/moritz-handoff.json` on this machine. Never copy contact details into tracked memory; do not resend the initial email.
 - [BRIEF.md](BRIEF.md): structured capture of the founder's brief, uncertainties preserved.
 - [DECISIONS.md](DECISIONS.md): decisions, reasons, and delegated authority.
 - [LOG.md](LOG.md): meaningful session narrative.

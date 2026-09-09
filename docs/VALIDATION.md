@@ -44,3 +44,11 @@ Existing Loyverse/Sausage repositories were inspected read-only; their reported 
 - New screenshots: `design/evidence/roadmap-desktop.png`, `roadmap-mobile-day.png`, `overview-refined.png` and `overview-mobile-next.png`. The final phone check also caught a cramped coverage card; it now stacks in one column with readable copy and no overlapping decoration. Desktop/mobile rendering and recovery interaction were inspected; physical phone/camera/network acceptance remains pending.
 
 The dirty-form unload warning is implemented but is not an offline-save guarantee or a validated OS-crash recovery path. Remaining gates are listed in `ADVERSARIAL_REVIEW.md` and the deployment runbook. No DNS changes, public deployment, paid model calls or live POS/customer actions occurred.
+
+## 9 September 2026 · plain-copy correction
+
+- Source `87c802d`: [CI run 34305458943](https://github.com/lokigod69/SausageHealth/actions/runs/34305458943) passed all 26 tests, frontend production build, Docker build and container smoke. Local frontend build and six frontend tests also passed. No backend behavior was changed.
+- Inspected login, overview and roadmap at 1440×1000 and 390×844. Login uses only functional sign-in copy; no invitation/password-reset notice or motivational slogans. Mobile document width matched its available viewport width, with no horizontal overflow. Day/night views retain the original artwork.
+- Successfully signed out/in using the private preview account; opened the roadmap's suggested source and checked the store/category and detail form. The deleted walkthrough's grid now uses one column; Continue remains right-aligned. The technical checklist is conditional on owner role; existing server permissions are unchanged.
+- Saved six `design/evidence/plain-*` screenshots with an empty collection. No actual business upload or physical phone test occurred in this copy pass. The preview server was restarted and a fresh app tab recovered from the old tab's retained connection-error page.
+- One explicitly authorized operational email to Moritz was sent via the owner's Gmail and verified by its "Message sent" response. Its private handoff file is ignored by Git. This does not validate email delivery to the recipient, a hosted login or a production deployment.
