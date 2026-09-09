@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import {
   api,
+  submitEntry,
   ApiError,
   categoryNames,
   dateLabel,
@@ -354,7 +355,7 @@ function Capture({
     }
     pendingForm.current = form;
     try {
-      onSaved(await api<Entry>("/entries", { method: "POST", body: form }));
+      onSaved(await submitEntry(form));
     } catch (e) {
       setError((e as Error).message);
       if (e instanceof ApiError && e.status === 401) setReauth(true);

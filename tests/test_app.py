@@ -2,6 +2,8 @@ import hashlib
 import json
 import sqlite3
 import zipfile
+import os
+import secrets
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,8 +16,24 @@ HEADERS = {'origin': 'http://127.0.0.1:5180', 'x-sh-request': '1'}
 PASSWORD = 'test-only-password-7294'
 
 
-@pytest.fixture
-def env(tmp_path, monkeypatch):
+@pytest.fixture(params=['sqlite', 'postgres'])
+def env(tmp_path, monkeypatch, request):
+    monkeypatch.delenv('SH_DATABASE_URL', raising=False)
+    monkeypatch.delenv('SH_DATABASE_BACKEND', raising=False)
+    monkeypatch.delenv('VERCEL', raising=False)
+    monkeypatch.delenv('SH_STORAGE', raising=False)
+    schema = None
+    if request.param == 'postgres':
+        url = os.environ.get('SH_TEST_DATABASE_URL')
+        if not url:
+            pytest.skip('SH_TEST_DATABASE_URL is not configured.')
+        import psycopg
+        from psycopg import sql
+        schema = 'sh_test_' + secrets.token_hex(8)
+        with psycopg.connect(url) as db:
+            db.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
+        monkeypatch.setenv('SH_DATABASE_URL', url)
+        monkeypatch.setenv('SH_DATABASE_SCHEMA', schema)
     monkeypatch.setenv('SH_DATA_DIR', str(tmp_path / 'data'))
     monkeypatch.setenv('SH_ENV', 'test')
     monkeypatch.setenv('SH_ORIGIN', HEADERS['origin'])
@@ -25,7 +43,12 @@ def env(tmp_path, monkeypatch):
                                  ('staff@test.local', 'staff', ['sausage']),
                                  ('other@test.local', 'staff', ['sausage'])]:
         add_user(email, email.split('@')[0], role, stores, PASSWORD)
-    return tmp_path
+    try:
+        yield tmp_path
+    finally:
+        if schema:
+            with psycopg.connect(url) as db:
+                db.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(schema)))
 
 
 def client(email='owner@test.local'):
@@ -135,6 +158,8 @@ def test_review_is_versioned_and_audited(env):
 
 
 def test_backup_restore_originals_and_private_export(env, monkeypatch):
+    if os.environ.get('SH_DATABASE_URL'):
+        pytest.skip('Cloud backup/restore is covered by test_cloud.py.')
     c = client()
     row = c.post('/api/entries', data={'store': 'health', 'category': 'suppliers', 'title': 'Test only receipt', 'occurred_on': '2026-09-08', 'request_key': '88888888-2222-3333-4444'}, files={'files': ('receipt.txt', b'unchanged original', 'text/plain')}).json()
     path = backup(env / 'backup.zip')

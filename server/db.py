@@ -3,6 +3,7 @@ import json
 import os
 import secrets
 import sqlite3
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,13 +14,61 @@ def now():
 
 
 def data_dir():
+    if os.environ.get('VERCEL') == '1':
+        raise RuntimeError('Persistent local files are unavailable on Vercel.')
     path = Path(os.environ.get('SH_DATA_DIR', '.data')).resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
+def postgres_enabled():
+    return bool(os.environ.get('SH_DATABASE_URL')) or os.environ.get('SH_DATABASE_BACKEND') == 'postgres'
+
+
+class Record(dict):
+    """Named rows with the positional access used by aggregate queries."""
+    def __getitem__(self, key):
+        return list(self.values())[key] if isinstance(key, int) else super().__getitem__(key)
+
+
+def pg_row(cursor):
+    names = [column.name for column in cursor.description] if cursor.description else []
+    return lambda values: Record(zip(names, values))
+
+
+class PostgresConnection:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def execute(self, query, params=()):
+        if query.strip().upper() == 'BEGIN IMMEDIATE':
+            # Preserve the pilot's serialized write/compare/update semantics across instances.
+            return self.connection.execute('SELECT pg_advisory_xact_lock(739184206)', prepare=False)
+        return self.connection.execute(query.replace('?', '%s'), params, prepare=False)
+
+    def executescript(self, script):
+        for statement in script.split(';'):
+            if statement.strip() and not statement.strip().startswith('PRAGMA'):
+                self.execute(statement.replace('id INTEGER PRIMARY KEY, actor_id', 'id BIGSERIAL PRIMARY KEY, actor_id')
+                             .replace('expires REAL', 'expires DOUBLE PRECISION')
+                             .replace('window_start REAL', 'window_start DOUBLE PRECISION'))
+
+
 @contextmanager
 def connect():
+    if postgres_enabled():
+        import psycopg
+        from psycopg import sql
+        schema = os.environ.get('SH_DATABASE_SCHEMA', 'public')
+        if not re.fullmatch(r'[a-z][a-z0-9_]{0,62}', schema):
+            raise ValueError('Invalid database schema.')
+        url = os.environ.get('SH_DATABASE_URL') or os.environ['DATABASE_URL']
+        with psycopg.connect(url, row_factory=pg_row, connect_timeout=20, prepare_threshold=None) as db:
+            db.execute(sql.SQL('SET search_path TO {}').format(sql.Identifier(schema)))
+            yield PostgresConnection(db)
+        return
+    if os.environ.get('VERCEL') == '1':
+        raise RuntimeError('Vercel requires configured Postgres storage.')
     db = sqlite3.connect(data_dir() / 'sausagehealth.sqlite', timeout=20)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys=ON')
@@ -34,9 +83,13 @@ def connect():
 
 
 def initialize():
-    (data_dir() / 'uploads').mkdir(exist_ok=True)
+    if os.environ.get('SH_STORAGE') != 'blob':
+        (data_dir() / 'uploads').mkdir(exist_ok=True)
     with connect() as db:
-        db.execute('PRAGMA journal_mode=WAL')
+        if postgres_enabled():
+            db.execute('BEGIN IMMEDIATE')
+        else:
+            db.execute('PRAGMA journal_mode=WAL')
         db.executescript('''
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
@@ -73,6 +126,12 @@ def initialize():
           source_digest TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS ai_runs_by_entry ON ai_runs(entry_id,started_at);
+        CREATE TABLE IF NOT EXISTS upload_intents (
+          id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE,
+          author_id TEXT NOT NULL REFERENCES users(id), payload TEXT NOT NULL,
+          payload_hash TEXT NOT NULL, files TEXT NOT NULL, expires REAL NOT NULL,
+          created_at TEXT NOT NULL, entry_id TEXT REFERENCES entries(id)
+        );
         PRAGMA user_version=1;
         ''')
 

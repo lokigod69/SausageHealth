@@ -9,13 +9,14 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from .db import audit, check_password, connect, data_dir, initialize, now, password_hash
 from . import intake_ai
+from . import storage
 
 CATEGORIES = {'sales', 'stock', 'suppliers', 'expenses', 'team', 'walkthrough', 'other'}
 MAX_BODY = 105 * 1024 * 1024
@@ -49,6 +50,9 @@ async def lifespan(app):
     if os.environ.get('SH_ENV') == 'production' and not os.environ.get('SH_ORIGIN', '').startswith('https://'):
         raise RuntimeError('Production requires an HTTPS SH_ORIGIN.')
     initialize()
+    if os.environ.get('VERCEL') == '1' and (not storage.cloud_enabled() or not os.environ.get('BLOB_READ_WRITE_TOKEN')
+                                         or len(os.environ.get('SH_STORAGE_SIGNING_KEY', '')) < 40):
+        raise RuntimeError('Vercel requires private file storage and a signing key.')
     yield
 
 
@@ -140,8 +144,8 @@ def login(body: Login, request: Request):
         if not user or not valid:
             for key in keys:
                 db.execute('''INSERT INTO login_attempts VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET
-                  attempts=CASE WHEN ?-window_start>=900 THEN 1 ELSE attempts+1 END,
-                  window_start=CASE WHEN ?-window_start>=900 THEN ? ELSE window_start END''',
+                  attempts=CASE WHEN ?-login_attempts.window_start>=900 THEN 1 ELSE login_attempts.attempts+1 END,
+                  window_start=CASE WHEN ?-login_attempts.window_start>=900 THEN ? ELSE login_attempts.window_start END''',
                            (key, stamp, stamp, stamp, stamp))
             # Return instead of raising: commit failed-attempt counters.
             return JSONResponse({'detail': 'Email or password is incorrect.'}, status_code=401)
@@ -182,6 +186,8 @@ def entries(user=Depends(current_user)):
 
 @app.post('/api/entries', status_code=201)
 async def create_entry(request: Request, user=Depends(current_user)):
+    if storage.cloud_enabled():
+        raise HTTPException(422, 'Reload the page to use private file uploads.')
     async with request.form(max_files=5, max_fields=12, max_part_size=MAX_FILE) as form:
         store = str(form.get('store', ''))
         category = str(form.get('category', ''))
@@ -290,6 +296,9 @@ def download(file_id: str, user=Depends(current_user)):
         if not entry or not can_read(user, entry):
             raise HTTPException(404, 'File not found.')
         audit(db, user['id'], 'file.downloaded', entry['id'], file['id'])
+    if storage.cloud_enabled():
+        return RedirectResponse('/api/storage?grant=' + storage.grant(file_id, 'get'), status_code=303,
+                                headers={'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store'})
     target = data_dir() / 'uploads' / file['id']
     if not target.is_file():
         raise HTTPException(404, 'Original file is unavailable. Ask the technical owner to check the backup.')
@@ -310,7 +319,119 @@ def export(user=Depends(current_user)):
 def system(user=Depends(current_user)):
     return {'phase': 'collect', 'ai': 'ready' if intake_ai.configured() else 'not_connected', 'loyverse': 'not_connected',
             'storage': 'server', 'uploads': 'originals_preserved', 'max_file_mb': 50,
-            'environment': os.environ.get('SH_ENV', 'development')}
+            'environment': os.environ.get('SH_ENV', 'development'),
+            'upload_mode': 'direct' if storage.cloud_enabled() else 'multipart'}
+
+
+class FileSpec(BaseModel):
+    name: str = Field(min_length=1, max_length=180)
+    size: int = Field(ge=1, le=MAX_FILE)
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+
+
+class Submission(BaseModel):
+    request_key: str = Field(pattern=r'^[a-zA-Z0-9-]{16,80}$')
+    store: str
+    category: str
+    title: str = Field(min_length=2, max_length=160)
+    notes: str = Field(default='', max_length=30000)
+    occurred_on: str
+    files: list[FileSpec] = Field(default_factory=list, max_length=5)
+
+
+@app.post('/api/upload-intents')
+def upload_intent(body: Submission, user=Depends(current_user)):
+    if not storage.cloud_enabled():
+        raise HTTPException(404, 'Endpoint not found.')
+    if body.store not in {'sausage', 'health', 'both'} or not store_allowed(user, body.store):
+        raise HTTPException(403, 'Choose a store assigned to your account.')
+    if body.category not in CATEGORIES or len(body.title.strip()) < 2 or (not body.notes.strip() and not body.files):
+        raise HTTPException(422, 'Add a title and a note or file.')
+    try:
+        date.fromisoformat(body.occurred_on)
+    except ValueError:
+        raise HTTPException(422, 'Choose the date this information relates to.')
+    for file in body.files:
+        file.name = re.sub(r'[\x00-\x1f\x7f]', '', file.name.replace('\\', '/').split('/')[-1])[:180]
+        if Path(file.name).suffix.lower() not in ALLOWED_EXT:
+            raise HTTPException(422, 'Use a photo, PDF, spreadsheet, text export, audio, or video file.')
+    total = sum(f.size for f in body.files)
+    if total > 100 * 1024 * 1024:
+        raise HTTPException(413, 'Send less than 100 MB at a time.')
+    payload = body.model_dump()
+    payload['notes'], payload['title'] = body.notes.strip(), body.title.strip()
+    encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+    digest = hashlib.sha256(encoded.encode()).hexdigest()
+    with connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        previous = db.execute('SELECT * FROM upload_intents WHERE request_key=?', (body.request_key,)).fetchone()
+        if previous:
+            if previous['author_id'] != user['id'] or previous['payload_hash'] != digest:
+                raise HTTPException(409, 'This submission has different contents. Close it and start a new update.')
+            if previous['entry_id']:
+                return {'entry': entry_record(db, db.execute('SELECT * FROM entries WHERE id=?', (previous['entry_id'],)).fetchone())}
+            if previous['expires'] < time.time():
+                raise HTTPException(409, 'This upload expired. Close it and start a new update.')
+            intent_id, files, expires = previous['id'], json.loads(previous['files']), previous['expires']
+        else:
+            # Bounded pilot usage; reservations count even if a browser never finalizes.
+            reservations = db.execute('SELECT files,author_id,created_at FROM upload_intents').fetchall()
+            reserved = sum(sum(f['size'] for f in json.loads(r['files'])) for r in reservations)
+            if reserved + total > int(os.environ.get('SH_STORAGE_MAX_BYTES', str(1024 ** 3))):
+                raise HTTPException(429, 'The collection storage limit has been reached. Contact the owner.')
+            if sum(r['author_id'] == user['id'] and r['created_at'][:10] == now()[:10] for r in reservations) >= 30:
+                raise HTTPException(429, 'The daily upload limit has been reached. Try again tomorrow.')
+            intent_id, expires = secrets.token_hex(16), time.time() + 24 * 3600
+            files = [{'id': secrets.token_hex(16), **f.model_dump()} for f in body.files]
+            db.execute('INSERT INTO upload_intents VALUES (?,?,?,?,?,?,?,?,?)',
+                       (intent_id, body.request_key, user['id'], encoded, digest, json.dumps(files), expires, now(), None))
+            audit(db, user['id'], 'upload.reserved', detail=intent_id)
+        return {'id': intent_id, 'files': [dict(file, grant=storage.grant(file['id'], 'put', file['size'], expires)) for file in files]}
+
+
+@app.post('/api/upload-intents/{intent_id}/finalize', status_code=201)
+def finalize_upload(intent_id: str, user=Depends(current_user)):
+    if not storage.cloud_enabled():
+        raise HTTPException(404, 'Endpoint not found.')
+    with connect() as db:
+        intent = db.execute('SELECT * FROM upload_intents WHERE id=?', (intent_id,)).fetchone()
+        if not intent or intent['author_id'] != user['id']:
+            raise HTTPException(404, 'Upload not found.')
+        payload = json.loads(intent['payload'])
+        if not store_allowed(user, payload['store']):
+            raise HTTPException(403, 'This store is not assigned to your account.')
+        if intent['entry_id']:
+            return entry_record(db, db.execute('SELECT * FROM entries WHERE id=?', (intent['entry_id'],)).fetchone())
+        if intent['expires'] < time.time():
+            raise HTTPException(409, 'This upload expired. Close it and start a new update.')
+        files = json.loads(intent['files'])
+    # Provider-enforced no-overwrite paths make verification stable while DB work runs.
+    for file in files:
+        try:
+            raw = storage.read_original(file['id'], file['size'])
+            if hashlib.sha256(raw).hexdigest() != file['sha256']:
+                raise ValueError('Checksum mismatch')
+            del raw
+        except Exception:
+            raise HTTPException(503, 'The original file could not be verified. Keep this page open and retry.')
+    with connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        current = db.execute('SELECT * FROM upload_intents WHERE id=?', (intent_id,)).fetchone()
+        if current['entry_id']:
+            return entry_record(db, db.execute('SELECT * FROM entries WHERE id=?', (current['entry_id'],)).fetchone())
+        if current['expires'] < time.time():
+            raise HTTPException(409, 'This upload expired. Close it and start a new update.')
+        entry_id = secrets.token_hex(16)
+        db.execute('''INSERT INTO entries(id,request_key,store,category,title,notes,occurred_on,created_at,author_id)
+                      VALUES (?,?,?,?,?,?,?,?,?)''',
+                   (entry_id, payload['request_key'], payload['store'], payload['category'], payload['title'],
+                    payload['notes'], payload['occurred_on'], now(), user['id']))
+        for file in files:
+            db.execute('INSERT INTO attachments VALUES (?,?,?,?,?)',
+                       (file['id'], entry_id, file['name'], file['size'], file['sha256']))
+        db.execute('UPDATE upload_intents SET entry_id=? WHERE id=?', (entry_id, intent_id))
+        audit(db, user['id'], 'entry.created', entry_id, json.dumps({'files': len(files), 'storage': 'private'}))
+        return entry_record(db, db.execute('SELECT * FROM entries WHERE id=?', (entry_id,)).fetchone())
 
 
 def ai_entry(entry_id, user):

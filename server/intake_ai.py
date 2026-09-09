@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from .db import audit, connect, data_dir, now
+from . import storage
 
 
 class Fact(BaseModel):
@@ -45,8 +46,11 @@ def collect_sources(entry):
         if remaining <= 0:
             break
         if Path(file['name']).suffix.lower() in {'.txt', '.csv', '.tsv'}:
-            with (data_dir() / 'uploads' / file['id']).open('rb') as source:
-                raw = source.read(72000)
+            if storage.cloud_enabled():
+                raw = storage.read_original(file['id'], file['size'])[:72000]
+            else:
+                with (data_dir() / 'uploads' / file['id']).open('rb') as source:
+                    raw = source.read(72000)
             try:
                 text = raw.decode('utf-8-sig').strip()[:remaining]
             except UnicodeDecodeError:

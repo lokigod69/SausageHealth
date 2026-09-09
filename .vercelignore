@@ -1,11 +1,9 @@
 .git
 .venv
-.vercel
 .data
 .env
 .env.*
 node_modules
-dist
 design
 docs
 memory

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "regions": ["sin1"],
+  "functions": {
+    "api/index.py": { "maxDuration": 120, "excludeFiles": "{design,docs,memory,protocol,tests,artifacts}/**" },
+    "api/storage.mjs": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/api/storage", "destination": "/api/storage.mjs" },
+    { "source": "/api/:path*", "destination": "/api/index.py" }
+  ],
+  "headers": [{ "source": "/(.*)", "headers": [
+    { "key": "X-Content-Type-Options", "value": "nosniff" },
+    { "key": "X-Frame-Options", "value": "DENY" },
+    { "key": "Referrer-Policy", "value": "same-origin" },
+    { "key": "Content-Security-Policy", "value": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self' https://blob.vercel-storage.com https://*.blob.vercel-storage.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" }
+  ]}]
+}
