@@ -38,30 +38,51 @@ export type Entry = {
   version: number;
 };
 
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch("/api" + path, {
-    credentials: "same-origin",
-    ...init,
-    headers: {
-      "X-SH-Request": "1",
-      ...(init.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api" + path, {
+      credentials: "same-origin",
+      ...init,
+      headers: {
+        "X-SH-Request": "1",
+        ...(init.body instanceof FormData
+          ? {}
+          : { "Content-Type": "application/json" }),
+        ...init.headers,
+      },
+    });
+  } catch {
+    throw new ApiError(
+      "The connection was interrupted. Keep this page open and try again; we could not confirm the result.",
+    );
+  }
   if (!response.ok) {
     let message =
-      "Could not connect. Your changes have not been saved. Please try again.";
+      "We could not confirm the result. Keep this page open and try again.";
     try {
       const body = await response.json();
       if (typeof body.detail === "string") message = body.detail;
     } catch {
       /* Keep a useful connection message. */
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new ApiError(
+      "The server response was interrupted. Keep this page open and try again; we could not confirm the result.",
+    );
+  }
 }
 
 export const storeNames: Record<Store, string> = {

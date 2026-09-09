@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import {
   api,
+  ApiError,
   categoryNames,
   dateLabel,
   fileSize,
@@ -56,6 +57,8 @@ import {
   type Store,
   type User,
 } from "./api";
+
+import { Journey, NextStep } from "./Journey";
 
 type Page =
   "overview" | "collection" | "stores" | "roadmap" | "team" | "settings";
@@ -75,56 +78,6 @@ const catIcons = {
   walkthrough: MapPin,
   other: FileText,
 };
-const phases = [
-  {
-    name: "Collect",
-    subtitle: "Bring the everyday together",
-    description:
-      "Give every receipt, sales report, and store note a home. Review what came in and keep the original evidence.",
-    needs: [
-      "Daily sales for each store",
-      "Purchase receipts and supplier contacts",
-      "Rent, payroll, utilities, and other costs",
-      "Product exports and a first stock count",
-    ],
-  },
-  {
-    name: "Understand",
-    subtitle: "See what the numbers say",
-    description:
-      "Connect Loyverse, reconcile sales and costs, and turn reviewed evidence into a reliable view of each store.",
-    needs: [
-      "Read-only Loyverse access verified",
-      "Products, pack sizes, and stores mapped",
-      "Cash and inventory reconciliation",
-      "Accountant confirms tax and accounting treatment",
-    ],
-  },
-  {
-    name: "Improve",
-    subtitle: "Make better everyday decisions",
-    description:
-      "Find slow stock, protect best sellers, and test changes in a small, measurable way.",
-    needs: [
-      "Reorder suggestions with owner approval",
-      "Expiry and spoilage tracking",
-      "Weekly store performance review",
-      "Product and marketing experiments",
-    ],
-  },
-  {
-    name: "Grow",
-    subtitle: "Build something worth repeating",
-    description:
-      "Offer reliable availability and order requests to customers. Expand only when the first two stores have a repeatable playbook.",
-    needs: [
-      "Fresh, verified customer-facing inventory",
-      "Order reservations and delivery routines",
-      "Staff training and support playbook",
-      "Evidence that each store can sustain a profit",
-    ],
-  },
-];
 
 function PixelMark({ small = false }: { small?: boolean }) {
   return (
@@ -324,17 +277,58 @@ function Capture({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const [reauth, setReauth] = useState(false);
+  const [rePassword, setRePassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const pendingForm = useRef<FormData | null>(null);
   const requestKey = useRef(crypto.randomUUID());
   const fileInput = useRef<HTMLInputElement>(null);
+  const locked = busy || uncertain;
+  useEffect(() => {
+    if (!(notes || title || files.length)) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [notes, title, files.length]);
+  async function signInAgain() {
+    setAuthBusy(true);
+    setError("");
+    try {
+      const account = await api<User>("/login", {
+        method: "POST",
+        body: JSON.stringify({ email: user.email, password: rePassword }),
+      });
+      if (account.id !== user.id)
+        throw new Error(
+          "This update belongs to a different account. Contact the technical owner.",
+        );
+      setReauth(false);
+      setRePassword("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
   function close() {
     if (
       !busy &&
+      !authBusy &&
       (!(notes || title || files.length) ||
-        window.confirm("Leave this update? It has not been saved yet."))
+        window.confirm(
+          uncertain
+            ? "The save has not been confirmed. Leave without checking? Your draft will be lost; check Collection before submitting a new copy."
+            : "Leave this update? It has not been saved yet.",
+        ))
     )
       onClose();
   }
   function addFiles(incoming: FileList | File[]) {
+    if (locked) return;
     const all = [...files, ...Array.from(incoming)];
     if (
       all.length > 5 ||
@@ -349,29 +343,39 @@ function Capture({
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || reauth) return;
     setBusy(true);
     setError("");
-    const form = new FormData();
-    Object.entries({
-      store,
-      category,
-      title: title.trim() || `${categoryNames[category]} · ${date}`,
-      notes,
-      occurred_on: date,
-      request_key: requestKey.current,
-    }).forEach(([k, v]) => form.append(k, v));
-    files.forEach((file) => form.append("files", file));
+    const form = pendingForm.current ?? new FormData();
+    if (!pendingForm.current) {
+      Object.entries({
+        store,
+        category,
+        title: title.trim() || `${categoryNames[category]} · ${date}`,
+        notes,
+        occurred_on: date,
+        request_key: requestKey.current,
+      }).forEach(([k, v]) => form.append(k, v));
+      files.forEach((file) => form.append("files", file));
+    }
+    pendingForm.current = form;
     try {
       onSaved(await api<Entry>("/entries", { method: "POST", body: form }));
     } catch (e) {
       setError((e as Error).message);
+      if (e instanceof ApiError && e.status === 401) setReauth(true);
+      if (e instanceof ApiError && e.status && e.status < 500 && !uncertain) {
+        pendingForm.current = null;
+        setUncertain(false);
+      } else {
+        setUncertain(true);
+      }
     } finally {
       setBusy(false);
     }
   }
   return (
-    <Modal title="ADD AN UPDATE" onClose={close} wide busy={busy}>
+    <Modal title="ADD AN UPDATE" onClose={close} wide busy={busy || authBusy}>
       <div className="capture-heading">
         <div className="step-count">
           <span className={step === 1 ? "active" : "complete"}>
@@ -452,6 +456,7 @@ function Capture({
               A short title <span className="optional">optional</span>
               <input
                 maxLength={160}
+                disabled={locked}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={`${categoryNames[category]} · ${date}`}
@@ -461,6 +466,7 @@ function Capture({
               Date of the information
               <input
                 type="date"
+                disabled={locked}
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -471,6 +477,7 @@ function Capture({
             Add a note
             <textarea
               rows={4}
+              disabled={locked}
               maxLength={30000}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -481,6 +488,7 @@ function Capture({
             ref={fileInput}
             className="visually-hidden"
             type="file"
+            disabled={locked}
             multiple
             tabIndex={-1}
             aria-label="Choose files"
@@ -493,6 +501,7 @@ function Capture({
           <button
             type="button"
             className={`dropzone ${dragging ? "dragging" : ""}`}
+            disabled={locked}
             onClick={() => fileInput.current?.click()}
             onDragOver={(e) => {
               e.preventDefault();
@@ -527,7 +536,7 @@ function Capture({
                     type="button"
                     aria-label={`Remove ${f.name}`}
                     onClick={() => setFiles(files.filter((_, n) => n !== i))}
-                    disabled={busy}
+                    disabled={locked}
                   >
                     <X size={17} />
                   </button>
@@ -536,6 +545,46 @@ function Capture({
             </div>
           )}
           <ErrorNote message={error} />
+          {reauth && (
+            <div
+              className="reauth-panel"
+              role="group"
+              aria-label="Sign in again without losing your update"
+            >
+              <strong>Your session ended. Your draft is still here.</strong>
+              <p>Sign in again as {user.email}, then save this update.</p>
+              <label>
+                Password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={rePassword}
+                  onChange={(e) => setRePassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!authBusy && rePassword) void signInAgain();
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={authBusy || !rePassword}
+                onClick={signInAgain}
+              >
+                {authBusy ? "Signing in…" : "Sign in and keep my draft"}
+              </button>
+            </div>
+          )}
+          {uncertain && (
+            <p className="retry-note" role="status">
+              The save may have reached the server. Retry the same update to
+              check safely. Its details are held unchanged until we have
+              confirmation.
+            </p>
+          )}
           <p className="capture-note">
             <ShieldCheck size={15} /> Originals are saved privately. This update
             will wait for review.
@@ -545,16 +594,20 @@ function Capture({
               type="button"
               className="button ghost"
               onClick={() => setStep(1)}
-              disabled={busy}
+              disabled={locked}
             >
               <ArrowLeft size={16} />
               Back
             </button>
             <button
               className="button primary"
-              disabled={busy || (!notes.trim() && !files.length)}
+              disabled={busy || reauth || (!notes.trim() && !files.length)}
             >
-              {busy ? "Saving your update…" : "Save update"}
+              {busy
+                ? "Saving your update…"
+                : uncertain
+                  ? "Retry the same update"
+                  : "Save update"}
               {busy ? <span className="spinner" /> : <ArrowRight size={16} />}
             </button>
           </div>
@@ -874,6 +927,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [capture, setCapture] = useState<Category | null>(null);
+  const [captureStore, setCaptureStore] = useState<Store | undefined>();
   const [detail, setDetail] = useState<Entry | null>(null);
   const [guide, setGuide] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -905,6 +959,7 @@ export default function App() {
   }, []);
   async function refresh() {
     setError("");
+    setCollectionLoaded(false);
     try {
       setEntries(await api<Entry[]>("/entries"));
       setCollectionLoaded(true);
@@ -931,9 +986,17 @@ export default function App() {
     setMobileNav(false);
     window.scrollTo({ top: 0 });
   }
+  function startIntake(category: Category, store: Store) {
+    setCaptureStore(store);
+    setCapture(category);
+  }
+  function closeCapture() {
+    setCapture(null);
+    setCaptureStore(undefined);
+  }
   function saved(entry: Entry) {
     setEntries((old) => [entry, ...old.filter((e) => e.id !== entry.id)]);
-    setCapture(null);
+    closeCapture();
     setNotice("Update saved. The original is safely in your collection.");
   }
   function reviewed(entry: Entry) {
@@ -946,16 +1009,20 @@ export default function App() {
   async function logout() {
     try {
       await api("/logout", { method: "POST" });
-      setUser(null);
-      setEntries([]);
-      setCollectionLoaded(false);
-      setSystem(null);
-      setAudit(null);
-      setDetail(null);
-      setPage("overview");
     } catch (e) {
-      setError((e as Error).message);
+      if (!(e instanceof ApiError && e.status === 401)) {
+        setError((e as Error).message);
+        return;
+      }
     }
+    setUser(null);
+    setEntries([]);
+    setCollectionLoaded(false);
+    setSystem(null);
+    setAudit(null);
+    setDetail(null);
+    setPage("overview");
+    setError("");
   }
   if (loading)
     return (
@@ -1259,81 +1326,14 @@ export default function App() {
                 </button>
               </section>
               <div className="dashboard-lower">
-                <section className="next-section">
-                  <div className="section-heading">
-                    <div>
-                      <span className="eyebrow">
-                        SMALL STEPS, REAL PROGRESS
-                      </span>
-                      <h2>A good place to begin</h2>
-                    </div>
-                    <span className="handwritten">
-                      one thing at a time <span>↙</span>
-                    </span>
-                  </div>
-                  <div className="task-list">
-                    {(
-                      [
-                        {
-                          c: "sales",
-                          time: "2 MIN",
-                          description:
-                            "A daily report, a screenshot, or a simple note.",
-                        },
-                        {
-                          c: "suppliers",
-                          time: "3 MIN",
-                          description:
-                            "A photo of what we bought and what it cost.",
-                        },
-                        {
-                          c: "walkthrough",
-                          time: "5 MIN",
-                          description:
-                            "Show us around. Tell us what makes it yours.",
-                        },
-                      ] as const
-                    ).map((t, i) => {
-                      const Icon = catIcons[t.c];
-                      const count = scoped.filter(
-                        (e) => e.category === t.c,
-                      ).length;
-                      return (
-                        <button
-                          className="task-row"
-                          key={t.c}
-                          onClick={() => setCapture(t.c)}
-                        >
-                          <span className="task-number">0{i + 1}</span>
-                          <span className="task-icon">
-                            <Icon size={22} />
-                          </span>
-                          <span className="task-copy">
-                            <strong>
-                              {t.c === "sales"
-                                ? "Share a day of sales"
-                                : t.c === "suppliers"
-                                  ? "Add a supplier receipt"
-                                  : "Introduce your stores"}
-                            </strong>
-                            <small>{t.description}</small>
-                          </span>
-                          <span className="task-time">
-                            {count ? `${count} ADDED` : t.time}
-                          </span>
-                          <ArrowRight size={17} />
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    className="quiet-link other-update"
-                    onClick={() => setCapture("other")}
-                  >
-                    <Plus size={15} />
-                    Have something else? There’s a place for that too.
-                  </button>
-                </section>
+                <NextStep
+                  user={user}
+                  entries={entries}
+                  scope={scope}
+                  loaded={collectionLoaded}
+                  onCapture={startIntake}
+                  onReview={setDetail}
+                />
                 <section className="foundation-card">
                   <div className="foundation-top">
                     <span className="eyebrow">THE BIGGER PICTURE</span>
@@ -1666,66 +1666,18 @@ export default function App() {
           )}
 
           {page === "roadmap" && (
-            <>
-              <p className="page-intro">
-                We’re in the feeding phase. Small, useful inputs become a
-                reliable foundation, then better decisions.
-                <br />
-                Progress is based on evidence. Later phases stay planned until
-                their requirements are met.
-              </p>
-              <div className="journey-track">
-                {phases.map((p, i) => (
-                  <button
-                    key={p.name}
-                    className={`${i === 0 ? "current" : ""} ${phaseOpen === i ? "selected" : ""}`}
-                    onClick={() => setPhaseOpen(i)}
-                  >
-                    <span>0{i + 1}</span>
-                    <strong>{p.name}</strong>
-                    <small>{i === 0 ? "WE ARE HERE" : "UP NEXT"}</small>
-                    <ChevronRight size={20} />
-                  </button>
-                ))}
-              </div>
-              <section className="phase-detail">
-                <div>
-                  <Tag tone={phaseOpen === 0 ? "green" : ""}>
-                    {phaseOpen === 0 ? "In progress" : "Planned"}
-                  </Tag>
-                  <p className="eyebrow">PHASE 0{phaseOpen + 1}</p>
-                  <h2>{phases[phaseOpen].subtitle}</h2>
-                  <p>{phases[phaseOpen].description}</p>
-                  {phaseOpen === 0 && (
-                    <button
-                      className="button primary"
-                      onClick={() => setCapture("sales")}
-                    >
-                      Add a piece of the picture
-                      <Plus size={16} />
-                    </button>
-                  )}
-                </div>
-                <div className="milestone-list">
-                  <h3>What this phase needs</h3>
-                  {phases[phaseOpen].needs.map((t) => (
-                    <div key={t}>
-                      <span className="empty-check" />
-                      <span>{t}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-              <div className="gentle-note roadmap-note">
-                <ShieldCheck size={22} />
-                <p>
-                  <strong>One useful correction to “feed, then digest.”</strong>{" "}
-                  We’ll review and learn as information arrives. We don’t need
-                  to wait for a perfect archive before improving a daily
-                  routine.
-                </p>
-              </div>
-            </>
+            <Journey
+              user={user}
+              entries={entries}
+              scope={scope}
+              loaded={collectionLoaded}
+              onCapture={startIntake}
+              onReview={setDetail}
+              phase={phaseOpen}
+              onPhase={setPhaseOpen}
+              onGuide={() => setGuide(true)}
+              environment={system?.environment}
+            />
           )}
 
           {page === "team" && (
@@ -1759,8 +1711,8 @@ export default function App() {
                     icon: BookOpen,
                     name: "The intake assistant",
                     label: "MAKING SENSE OF INPUTS",
-                    desc: "Will read receipts, transcribe notes, and propose structured facts with links to their originals.",
-                    needs: "Sample files + a chosen AI provider",
+                    desc: "Prepares draft facts from notes and readable text exports when connected. Photo reading and audio transcription are still planned.",
+                    needs: "Text samples + model, API key and provider budget",
                   },
                   {
                     icon: Wallet,
@@ -1970,8 +1922,8 @@ export default function App() {
         <Capture
           user={user}
           initial={capture}
-          initialStore={scope}
-          onClose={() => setCapture(null)}
+          initialStore={captureStore ?? scope}
+          onClose={closeCapture}
           onSaved={saved}
         />
       )}
