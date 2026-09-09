@@ -12,4 +12,5 @@ for name in ('DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'BLOB_READ_WRITE_TOKEN', '
         os.environ[name] = values[name]
 os.environ['SH_DATABASE_URL'] = values['DATABASE_URL']
 os.environ['SH_STORAGE'] = 'blob'
+os.environ['PYTHONPATH'] = str(root)
 sys.exit(subprocess.call([sys.executable, *sys.argv[1:]], cwd=root))
