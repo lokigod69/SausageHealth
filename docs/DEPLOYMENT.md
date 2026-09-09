@@ -2,17 +2,17 @@
 
 Deployment is prepared, not performed. No server has been rented and this app has no public deployment. The Docker image was built and exercised in GitHub's Linux CI on 9 September 2026, including persistence across restart and backup creation; the local Docker engine is still unavailable. Real HTTPS, the selected host and Moritz's phone remain deployment checks.
 
-## Proposed address using the existing domain
+## Confirmed address
 
-Use `ops.thesausageguy.shop` for the private workspace, with the existing customer website remaining at its current root/`www` addresses. This is a recommendation, not a confirmed deployment target. The owner does not need a second domain registration to create an `ops` subdomain. Read-only DNS inspection on 9 September 2026 points to Porkbun nameservers and a Vercel target for `www`; account access is still needed. [Porkbun's record guide](https://kb.porkbun.com/article/231-how-to-add-dns-records-on-porkbun) explains the subdomain Host field.
+The owner confirmed `ops.thesausageguy.shop` on 9 September 2026. The existing customer website stays at its current root/`www` addresses. No second domain registration is needed. Read-only DNS inspection points to Porkbun nameservers and a Vercel target for `www`. A Porkbun account page is open in the owner's browser; no DNS change has been made. The hosting target and IP are still missing.
 
-Once the owner selects the host/address and provides specific authority, create only the required `ops` A/AAAA or provider-specified CNAME record. Keep root, `www`, email and existing DNS records intact. Configure TLS for that hostname and set `SH_ORIGIN=https://ops.thesausageguy.shop` only if it is the selected address. Verify both the customer site and the new private login afterwards. An Admin link in the customer site can be added under separate scope later; it simply navigates to the private app and never shares internal records or session cookies.
+Once the owner selects the server and provides access/deployment authority, create only the required `ops` A/AAAA or provider-specified CNAME record. Keep root, `www`, email and existing DNS records intact. Configure TLS and `SH_ORIGIN=https://ops.thesausageguy.shop`. Verify both the customer site and the new private login afterwards. An Admin link in the customer site can be added under separate scope later; it simply navigates to the private app and never shares internal records or session cookies.
 
 ## The next handoff from the technical owner
 
-1. The desired private domain/subdomain and the hosting target (an existing VPS or a server you want to provision).
+1. The hosting target: an existing VPS, or an approved new server configuration and cost. The hostname is already confirmed.
 2. Access to that target and its DNS through the appropriate local secret/credential mechanism, not a committed file or public chat paste.
-3. Moritz’s account email/name and confirmation of who needs manager versus staff access. Account passwords are entered privately on the server.
+3. Moritz's email is supplied and stored only in Git-ignored `.data/moritz-handoff.json`. Create his manager account for both stores on the selected host. Staff identities/assignments can follow. Account passwords are entered privately on the server. A first-records email was sent through the owner's Gmail on 9 September; it explicitly says login is not online yet. Do not resend it or claim an account exists.
 4. Later: read-only Loyverse access and store IDs; OpenRouter key and exact approved model with a provider-side spending cap. These are not needed to begin manual intake.
 
 Hosting and account access are the next external inputs; device/network acceptance and a real backup/restore drill are still required before a shared intake pilot. AI, live inventory, and profitability each have their own validation gate; a login URL does not imply those integrations exist.

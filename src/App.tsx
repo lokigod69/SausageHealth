@@ -65,9 +65,9 @@ type Page =
 const navItems = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "collection", label: "Collection", icon: BookOpen },
-  { id: "stores", label: "Our stores", icon: StoreIcon },
-  { id: "roadmap", label: "The journey", icon: Map },
-  { id: "team", label: "Agent team", icon: Sparkles },
+  { id: "stores", label: "Stores", icon: StoreIcon },
+  { id: "roadmap", label: "Roadmap", icon: Map },
+  { id: "team", label: "AI tools", icon: Sparkles },
 ] as const;
 const catIcons = {
   sales: Receipt,
@@ -182,12 +182,12 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           </span>
         </div>
         <div className="login-heading">
-          <span className="eyebrow">TWO STORES. ONE SHARED VISION.</span>
+          <span className="eyebrow">PANGLAO, PHILIPPINES</span>
           <h1>
-            A little island.
-            <br />A bigger picture.
+            Sausage
+            <br />
+            Health
           </h1>
-          <p>A home for everything that helps our stores grow.</p>
         </div>
         <img
           src="/art/island.png"
@@ -195,15 +195,13 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
         />
         <div className="login-foot">
           <MapPin size={14} /> Panglao Island, Philippines{" "}
-          <span>Made for the way we work.</span>
         </div>
       </div>
       <section className="login-form">
         <span className="eyebrow">
-          <LockKeyhole size={14} /> YOUR PRIVATE WORKSPACE
+          <LockKeyhole size={14} /> STORE OPERATIONS
         </span>
-        <h2>Welcome back.</h2>
-        <p>Let’s bring the everyday into focus.</p>
+        <h2>Sign in</h2>
         <form onSubmit={submit}>
           <label>
             Email
@@ -229,14 +227,10 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           </label>
           <ErrorNote message={error} />
           <button className="button primary" disabled={busy}>
-            {busy ? "Signing in…" : "Enter your workspace"}
+            {busy ? "Signing in…" : "Sign in"}
             <ArrowRight size={17} />
           </button>
         </form>
-        <p className="fine-print">
-          Access is by invitation. Ask the technical owner for your account or a
-          password reset.
-        </p>
         <div className="login-stores">
           <span>
             <StoreIcon size={16} /> The Sausage Guy
@@ -384,16 +378,10 @@ function Capture({
           <i />
           <span className={step === 2 ? "active" : ""}>2</span>
         </div>
-        <p className="eyebrow">
-          {step === 1 ? "A LITTLE CONTEXT" : "THE EVERYDAY DETAILS"}
-        </p>
-        <h2>
-          {step === 1 ? "What are we collecting?" : prompts[category].title}
-        </h2>
+        <p className="eyebrow">{step === 1 ? "STORE & CATEGORY" : "DETAILS"}</p>
+        <h2>{step === 1 ? "Add an update" : prompts[category].title}</h2>
         <p>
-          {step === 1
-            ? "Start small. One report, receipt, or thought is enough."
-            : prompts[category].hint}
+          {step === 1 ? "Choose a store and category." : prompts[category].hint}
         </p>
       </div>
       {step === 1 ? (
@@ -436,9 +424,6 @@ function Capture({
             </div>
           </fieldset>
           <div className="modal-actions">
-            <span className="muted small-text">
-              Rough notes are welcome here.
-            </span>
             <button className="button primary" onClick={() => setStep(2)}>
               Continue
               <ArrowRight size={16} />
@@ -857,19 +842,12 @@ function Guide({
   onStart: () => void;
 }) {
   return (
-    <Modal title="YOUR FIRST FIVE MINUTES" onClose={onClose}>
+    <Modal title="HELP" onClose={onClose}>
       <div className="guide-content">
         <span className="large-icon">
           <Sprout />
         </span>
-        <h2>
-          A small start.
-          <br />A clearer tomorrow.
-        </h2>
-        <p>
-          You don’t need to organize everything first. Bring one useful thing
-          from today.
-        </p>
+        <h2>Adding an update</h2>
         <ol className="guide-steps">
           <li>
             <span>1</span>
@@ -884,7 +862,7 @@ function Guide({
           <li>
             <span>2</span>
             <div>
-              <h3>Add what you already have</h3>
+              <h3>Add a note or file</h3>
               <p>
                 Take a receipt photo, attach a report, or write a note. Say when
                 it happened and what it means.
@@ -905,12 +883,12 @@ function Guide({
         <div className="gentle-note">
           <AudioLines size={18} />
           <p>
-            Prefer talking? Record a short voice note on your phone and attach
-            it. Automatic transcription comes after AI is connected.
+            Audio files can be attached. Automatic transcription is not
+            available.
           </p>
         </div>
         <button className="button primary" onClick={onStart}>
-          Let’s add the first update
+          Add an update
           <ArrowRight size={17} />
         </button>
       </div>
@@ -1028,7 +1006,7 @@ export default function App() {
     return (
       <div className="loading-screen">
         <PixelMark />
-        <p>Bringing your island into focus…</p>
+        <p>Loading…</p>
       </div>
     );
   if (!user) return <Login onLogin={setUser} />;
@@ -1051,13 +1029,13 @@ export default function App() {
   );
   const title =
     page === "overview"
-      ? "Your island, in focus."
+      ? "Overview"
       : {
-          collection: "A home for the everyday.",
-          stores: "Two stores. One shared vision.",
-          roadmap: "From a small start to something bigger.",
-          team: "A thoughtful team, built around you.",
-          settings: "Your workspace, your way.",
+          collection: "Collection",
+          stores: "Stores",
+          roadmap: "Roadmap",
+          team: "AI tools",
+          settings: "Settings",
         }[page];
   return (
     <div className="app-shell">
@@ -1080,7 +1058,7 @@ export default function App() {
           <PixelMark />
           <span>
             sausage<span className="brand-light">health</span>
-            <small>THE SHARED PICTURE</small>
+            <small>STORE OPERATIONS</small>
           </span>
         </button>
         <div className="workspace-label">
@@ -1107,9 +1085,9 @@ export default function App() {
           <div className="phase-mini">
             <div>
               <span className="status-dot" />
-              THE BEGINNING<span>01 / 04</span>
+              CURRENT PHASE<span>01 / 04</span>
             </div>
-            <p>Good things take root.</p>
+            <p>Collect store records</p>
             <div className="phase-track">
               <b />
               <i />
@@ -1117,7 +1095,7 @@ export default function App() {
               <i />
             </div>
             <button onClick={() => navigate("roadmap")}>
-              See our journey
+              View roadmap
               <ArrowRight size={14} />
             </button>
           </div>
@@ -1129,7 +1107,8 @@ export default function App() {
             Workspace settings
           </button>
           <button className="nav-item" onClick={() => setGuide(true)}>
-            <CircleHelp size={18} />A little guidance
+            <CircleHelp size={18} />
+            Help
           </button>
           <div className="user-row">
             <span className="avatar">{user.name.slice(0, 1)}</span>
@@ -1193,7 +1172,7 @@ export default function App() {
             <div>
               <p className="eyebrow">
                 {page === "overview"
-                  ? `A FRESH START, ${user.name.split(" ")[0].toUpperCase()}`
+                  ? "SAUSAGE HEALTH"
                   : "SAUSAGE HEALTH / WORKSPACE"}
               </p>
               <h1>{title}</h1>
@@ -1234,31 +1213,21 @@ export default function App() {
                 <div className="hero-text">
                   <span className="phase-tag">
                     <span className="status-dot" />
-                    PHASE 01 <i /> COLLECT & CONNECT
+                    PHASE 01 <i /> COLLECT
                   </span>
                   <h2>
-                    Good things start
+                    Store records,
                     <br />
-                    with a <em>clear picture.</em>
+                    <em>in one place.</em>
                   </h2>
-                  <p>
-                    Collect the everyday. Understand the business.
-                    <br className="desktop-br" /> Grow something good, together.
-                  </p>
+                  <p>Sales reports, receipts, costs and stock records.</p>
                   <button
                     className="button primary"
                     onClick={() => setCapture("sales")}
                   >
                     <Plus size={18} />
-                    {entries.length ? "Add an update" : "Add your first update"}
+                    Add an update
                     <ArrowRight size={17} />
-                  </button>
-                  <button
-                    className="quiet-link hero-guide"
-                    onClick={() => setGuide(true)}
-                  >
-                    <CircleHelp size={14} />
-                    New here? Start with a little guidance
                   </button>
                 </div>
                 <div className="hero-art">
@@ -1289,9 +1258,6 @@ export default function App() {
                     </strong>
                     <small>Updates collected</small>
                   </span>
-                  <span className="metric-detail">
-                    Every little piece helps
-                  </span>
                 </div>
                 <div>
                   <span className="metric-icon">
@@ -1305,9 +1271,6 @@ export default function App() {
                     </strong>
                     <small>Sources reviewed</small>
                   </span>
-                  <span className="metric-detail">
-                    Building a reliable foundation
-                  </span>
                 </div>
                 <button
                   onClick={() => {
@@ -1320,7 +1283,7 @@ export default function App() {
                   </span>
                   <span>
                     <strong className="awaiting">Awaiting records</strong>
-                    <small>Our profitability picture</small>
+                    <small>Profitability</small>
                   </span>
                   <ChevronRight size={17} />
                 </button>
@@ -1336,18 +1299,11 @@ export default function App() {
                 />
                 <section className="foundation-card">
                   <div className="foundation-top">
-                    <span className="eyebrow">THE BIGGER PICTURE</span>
+                    <span className="eyebrow">COLLECTION</span>
                     <Sprout size={23} />
                   </div>
-                  <h2>
-                    First, we put
-                    <br />
-                    down roots.
-                  </h2>
-                  <p>
-                    Six kinds of information help us understand what’s really
-                    happening in our stores.
-                  </p>
+                  <h2>Record coverage</h2>
+                  <p>Categories with at least one update.</p>
                   <div className="coverage-grid">
                     {coverage.map((c) => (
                       <span
@@ -1367,7 +1323,7 @@ export default function App() {
                     className="quiet-link"
                     onClick={() => navigate("collection")}
                   >
-                    Explore the collection
+                    View collection
                     <ArrowRight size={15} />
                   </button>
                   <PixelMark small />
@@ -1375,7 +1331,7 @@ export default function App() {
               </div>
               <section className="recent-section">
                 <div className="section-heading">
-                  <h2>From the stores</h2>
+                  <h2>Recent updates</h2>
                   <button
                     className="quiet-link"
                     onClick={() => navigate("collection")}
@@ -1409,11 +1365,11 @@ export default function App() {
                     <Leaf size={22} />
                     <p>
                       {collectionLoaded
-                        ? "A fresh page for both stores."
+                        ? "No updates yet."
                         : "Loading your collection…"}
                       <span>
                         {collectionLoaded
-                          ? "Your first update will start the story here."
+                          ? "Saved updates appear here."
                           : "Checking what has been saved."}
                       </span>
                     </p>
@@ -1434,13 +1390,12 @@ export default function App() {
             <>
               <div className="intro-row">
                 <p>
-                  A receipt, a report, a rough idea. Keep the original and the
-                  context together.
+                  Saved records and original files.
                   <br />
                   <span className="muted">
                     {user.role === "staff"
                       ? "You can see your own updates for your assigned stores."
-                      : "Review sources here before they become part of the business picture."}
+                      : "Open an update to review it."}
                   </span>
                 </p>
                 <button
@@ -1462,7 +1417,7 @@ export default function App() {
                       <span>
                         {count
                           ? `${count} update${count === 1 ? "" : "s"} collected`
-                          : "Ready for a first update"}
+                          : "No updates"}
                         <Plus size={14} />
                       </span>
                     </button>
@@ -1540,13 +1495,13 @@ export default function App() {
                       {query || status !== "all"
                         ? "No matching updates."
                         : collectionLoaded
-                          ? "Every picture starts somewhere."
+                          ? "No updates yet."
                           : "Opening the collection…"}
                     </h2>
                     <p>
                       {query || status !== "all"
                         ? "Try a different search or review status."
-                        : "Add a sales report, a receipt, or a short note. We’ll keep it all together."}
+                        : "Add a report, receipt or note."}
                     </p>
                     <button
                       className="button secondary"
@@ -1590,7 +1545,7 @@ export default function App() {
                       <span className="eyebrow">
                         {s === "sausage"
                           ? "THE FREEZER & DELI"
-                          : "THE EVERYDAY GOOD"}
+                          : "HEALTH FOODS"}
                       </span>
                       <h2>{storeNames[s]}</h2>
                       <p>
@@ -1648,11 +1603,7 @@ export default function App() {
                 </span>
                 <div>
                   <h3>Room for what comes next.</h3>
-                  <p>
-                    A third store can join the same system. First, let’s
-                    understand the two we have. Azure Sky and future locations
-                    are awaiting details.
-                  </p>
+                  <p>Azure Sky and future locations are awaiting details.</p>
                 </div>
                 <button
                   className="quiet-link"
@@ -1675,7 +1626,6 @@ export default function App() {
               onReview={setDetail}
               phase={phaseOpen}
               onPhase={setPhaseOpen}
-              onGuide={() => setGuide(true)}
               environment={system?.environment}
             />
           )}
@@ -1684,7 +1634,7 @@ export default function App() {
             <>
               <div className="intro-row">
                 <p>
-                  Specialist roles with one shared source of truth.
+                  Planned AI tools.
                   <br />
                   <span className="muted">
                     {system?.ai === "ready"
@@ -1702,43 +1652,43 @@ export default function App() {
                 {[
                   {
                     icon: Compass,
-                    name: "The coordinator",
-                    label: "THE SHARED MEMORY",
-                    desc: "Keeps the plan, open questions, and next actions together. Gives both owners the same context.",
+                    name: "Coordinator",
+                    label: "PLANNING",
+                    desc: "Will track priorities, open questions and next actions from reviewed records.",
                     needs: "Reviewed records + operating priorities",
                   },
                   {
                     icon: BookOpen,
-                    name: "The intake assistant",
-                    label: "MAKING SENSE OF INPUTS",
+                    name: "Intake assistant",
+                    label: "EXTRACTION",
                     desc: "Prepares draft facts from notes and readable text exports when connected. Photo reading and audio transcription are still planned.",
                     needs: "Text samples + model, API key and provider budget",
                   },
                   {
                     icon: Wallet,
-                    name: "The finance analyst",
-                    label: "THE TRUE COST OF THINGS",
+                    name: "Finance analyst",
+                    label: "FINANCE",
                     desc: "Will explain reconciled sales, costs, and margin. Calculations stay deterministic and traceable.",
                     needs: "Sales + costs + accountant-confirmed rules",
                   },
                   {
                     icon: Package,
-                    name: "The stock keeper",
-                    label: "THE RIGHT THINGS ON HAND",
+                    name: "Stock assistant",
+                    label: "INVENTORY",
                     desc: "Will flag low stock, expiry risk, and replenishment needs. Buying decisions stay with a person.",
                     needs: "Live inventory + product and supplier mappings",
                   },
                   {
                     icon: Users,
-                    name: "The customer host",
-                    label: "A HELPFUL FIRST HELLO",
+                    name: "Customer assistant",
+                    label: "CUSTOMER SERVICE",
                     desc: "Will answer from fresh, approved product data and collect order requests for staff to confirm.",
                     needs: "Verified availability + delivery workflow",
                   },
                   {
                     icon: Sprout,
-                    name: "The growth partner",
-                    label: "GOOD IDEAS, MEASURED",
+                    name: "Marketing analyst",
+                    label: "MARKETING",
                     desc: "Will suggest product and marketing experiments, with a clear hypothesis, budget, and result.",
                     needs: "Sales history + customer and competitor evidence",
                   },
@@ -1750,7 +1700,7 @@ export default function App() {
                       </span>
                       <span className="planned-label">
                         <span />
-                        {a.name === "The intake assistant"
+                        {a.name === "Intake assistant"
                           ? system?.ai === "ready"
                             ? "TEXT READY"
                             : "TEXT BUILT"
@@ -1761,7 +1711,7 @@ export default function App() {
                     <h2>{a.name}</h2>
                     <p>{a.desc}</p>
                     <div className="agent-needs">
-                      <span>STARTS WITH</span>
+                      <span>REQUIRES</span>
                       {a.needs}
                     </div>
                   </article>
@@ -1792,7 +1742,7 @@ export default function App() {
                   <div className="setting-row">
                     <span>
                       Appearance
-                      <small>A little daylight, or the evening glow.</small>
+                      <small>Day or night theme.</small>
                     </span>
                     <button
                       className="button secondary"
@@ -1863,11 +1813,10 @@ export default function App() {
               </div>
               {user.role === "owner" && (
                 <section className="settings-card owner-settings">
-                  <h2>For the technical owner</h2>
+                  <h2>Administration</h2>
                   <p className="muted">
                     Account administration, deployment, and provider credentials
-                    are managed on the server. This keeps those controls out of
-                    everyday store work.
+                    are managed on the server.
                   </p>
                   <div className="owner-actions">
                     <a className="button secondary" href="/api/export" download>
@@ -1910,7 +1859,8 @@ export default function App() {
           )}
           <footer className="page-footer">
             <span>
-              <PixelMark small />A little more clarity. Every day.
+              <PixelMark small />
+              Panglao, Philippines
             </span>
             <span>
               SAUSAGE HEALTH <i /> FOUNDATION 0.1

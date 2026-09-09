@@ -42,3 +42,9 @@ The overview's first action area now shows one suggested source/review for the s
 At phone widths the coverage card uses one column, larger copy and a 44 px minimum action height. Decorative corner pixels are hidden there to avoid colliding with coverage text.
 
 Day/night roadmap, the four phase selections, mobile store-targeted capture, expand/collapse launch guidance, and the recovery form were inspected. Evidence is in `design/evidence/roadmap-*` and `docs/VALIDATION.md`.
+
+## 9 September · owner copy correction
+
+The owner rejected motivational slogans, invitation/password-reset instructions and unsolicited walkthrough copy. This supersedes the earlier editorial chapter-copy choice. Keep Tropical Observatory's island, palette, typography and pixel details; use plain functional labels and short factual descriptions. No "little clarity", "grow together", "put down roots", personalized pep talks or ornamental AI language. Login contains the brand, store names, Email, Password and Sign in. Help remains optional. Technical deployment checks are owner-only; do not surface infrastructure explanations in staff tasks. Keep meaningful save/error feedback and honest data/integration limits.
+
+This is a copy and behavior correction within the existing visual direction, not a new design round. Updated evidence uses the `plain-*` prefix.

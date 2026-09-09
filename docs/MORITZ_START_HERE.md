@@ -1,18 +1,18 @@
-# Moritz: your first week
+# Store records
 
-You do not need a perfectly organized business before using this. Start with what you already have. A rough note with a clear date is useful.
+Initial request: one recent daily sales report from each store and one supplier receipt, with the store and date. Online access is pending server setup. The initial request was emailed on 9 September 2026; no login invitation has been sent.
 
-## Your first five minutes
+## Add an update
 
 1. Sign in using your own account when the private domain is ready.
-2. Choose **Add your first update**.
+2. Choose **Add an update**.
 3. Choose the store and **Daily sales**.
 4. Add yesterday’s report, a photo, or the text of the message you already send. Say which day it covers and whether cash, GCash, cards, and refunds are included.
 5. Press **Save update** and wait for the confirmation. It will appear in **Collection**.
 
 Do this separately for the two stores. Shared overhead can use **Both stores**, with a note explaining how it is shared. Do not enter made-up numbers just to fill a gap; say “unknown.”
 
-The dashboard's **Your next small step** suggests a first source for the selected store. A “first source reviewed” label means someone checked that source's context; it does not mean that the month is complete or the figures are reconciled. **The journey** shows who does each phase and what needs checking before moving forward.
+**Next update** suggests a first record for the selected store. “First source reviewed” means its context was checked, not that a month is complete or reconciled. **Roadmap** lists phase requirements.
 
 If saving is interrupted, keep the page open and use **Retry the same update**. The details stay held until the server confirms the result. If the login expired, **Sign in and keep my draft** lets you continue as the same person. Avoid closing the browser or restarting the phone during this: offline draft storage is not built yet.
 
@@ -33,12 +33,12 @@ Thirty days is a suggested starting batch, not a requirement to wait. Older repo
 
 - **At closing:** one sales update for each store, receipts for new purchases/costs, and a note about stockouts, spoilage, or unusual events.
 - **When receiving stock:** note supplier, product, pack size, quantity ordered versus received, cost, date, and expiry/batch information where available.
-- **When something is unclear:** use **Something else**. Say what happened and who can explain it.
+- **When something is unclear:** use **Other**. Say what happened and who can explain it.
 - **As operator:** open **Collection**, read the source, and mark it reviewed when the context is understandable. Add a review note for uncertainties. Wrong dates/store choices should remain unreviewed; submit a corrected update referencing the original. Editing originals is intentionally unavailable.
 
 ## Staff introduction
 
-Show each person the three-step in-app guide, then let them do one practice update while you watch: choose store, add a note or file, save and find the confirmation. Use simple English initially; confirm whether English, Cebuano, Tagalog, or a combination helps the actual team most. Design for tasks and training needs, not assumptions about nationality.
+The owner and Moritz handle staff training. **Help** is available on request in the app. Confirm language needs with the actual team.
 
 Staff accounts see their own submissions in assigned stores. They cannot view colleagues’ submissions, review records, run AI drafts, or export the collection. Use one account per person; no shared owner login.
 

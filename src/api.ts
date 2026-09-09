@@ -97,7 +97,7 @@ export const categoryNames: Record<Category, string> = {
   expenses: "Running costs",
   team: "Team & routines",
   walkthrough: "Store walkthrough",
-  other: "Something else",
+  other: "Other",
 };
 export const prompts: Record<
   Category,
@@ -110,7 +110,7 @@ export const prompts: Record<
       "What did the report say? Include cash, GCash, card sales, refunds, and anything that needs explaining.",
   },
   stock: {
-    title: "Show us what’s in store",
+    title: "Add stock records",
     hint: "Start with a Loyverse product export or clear shelf/freezer photos. Exact counts can come later.",
     placeholder:
       "Which products are these? Include units (pack, piece, kg), quantities if known, and anything that expires soon.",
@@ -140,10 +140,10 @@ export const prompts: Record<
       "Tell us where things are, what sells well, what’s difficult, opening hours, and what you’d like to improve.",
   },
   other: {
-    title: "Get it out of your head",
-    hint: "An idea, a customer request, a competitor observation, or a question. It all has a place here.",
+    title: "Add a note",
+    hint: "Ideas, customer requests, competitor observations or questions.",
     placeholder:
-      "What should we know? A rough note is fine. Separate what you observed from what you think it means.",
+      "Describe the observation or question. Mark assumptions separately.",
   },
 };
 export function manilaDate() {

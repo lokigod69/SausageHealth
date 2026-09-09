@@ -3,10 +3,10 @@ import type { Category, Entry, Store, User } from "./api";
 export const journeyPhases = [
   {
     name: "Collect",
-    place: "The landing",
-    subtitle: "Give the everyday a home.",
+    place: "Store records",
+    subtitle: "Collect and review records",
     description:
-      "Bring in a little evidence from each store. Review it as it arrives, and write down what is still unclear.",
+      "Collect records for each store, review the originals and identify missing information.",
     owner: "Moritz collects · technical owner prepares access",
     outcome: "A shared intake routine that works on the team's real phones.",
     gates: [
@@ -21,8 +21,8 @@ export const journeyPhases = [
   },
   {
     name: "Understand",
-    place: "The observatory",
-    subtitle: "Make the numbers explainable.",
+    place: "Reconciliation",
+    subtitle: "Reconcile sales and costs",
     description:
       "Match records, resolve differences and build calculations that can be traced back to the original evidence.",
     owner:
@@ -41,8 +41,8 @@ export const journeyPhases = [
   },
   {
     name: "Improve",
-    place: "The market garden",
-    subtitle: "Try small changes. Learn what works.",
+    place: "Operations",
+    subtitle: "Test improvements",
     description:
       "Use verified information to protect best sellers, reduce waste and test the reasons customers choose us.",
     owner:
@@ -61,8 +61,8 @@ export const journeyPhases = [
   },
   {
     name: "Grow",
-    place: "The harbour",
-    subtitle: "Open the next route with confidence.",
+    place: "Customers and expansion",
+    subtitle: "Add orders and new stores",
     description:
       "Let customers check products and request orders, then expand a store operation that the team can repeat.",
     owner: "Owners approve · Moritz runs fulfilment · technical owner builds",

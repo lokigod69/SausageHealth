@@ -1676,6 +1676,9 @@ legend {
   padding-top: 22px;
   margin-top: 3px;
 }
+.modal-actions > button:only-child {
+  margin-left: auto;
+}
 .capture-context {
   display: flex;
   gap: 8px;
@@ -3694,7 +3697,7 @@ legend {
 }
 .journey-practical {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 32px;
   margin: 36px 0;
 }
