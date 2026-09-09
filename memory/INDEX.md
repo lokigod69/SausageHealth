@@ -6,6 +6,7 @@
 - [DECISIONS.md](DECISIONS.md): decisions, reasons, and delegated authority.
 - [LOG.md](LOG.md): meaningful session narrative.
 - [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md): implemented boundaries and planned integrations.
+- [../docs/VERCEL.md](../docs/VERCEL.md): selected Vercel project, pending Neon Free terms and cloud storage implementation. Supersedes the VPS/IP handoff.
 - [../docs/MORITZ_START_HERE.md](../docs/MORITZ_START_HERE.md): operating intake guide and first data requests.
 - [../docs/RESEARCH.md](../docs/RESEARCH.md): dated sources, competitor hypotheses, and limits.
 - [../docs/ADVERSARIAL_REVIEW.md](../docs/ADVERSARIAL_REVIEW.md): 9 September review, fixes, domain recommendation and remaining launch/integration gates.

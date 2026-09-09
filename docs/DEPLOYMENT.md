@@ -1,17 +1,19 @@
 # Deployment and access runbook
 
-Deployment is prepared, not performed. No server has been rented and this app has no public deployment. The Docker image was built and exercised in GitHub's Linux CI on 9 September 2026, including persistence across restart and backup creation; the local Docker engine is still unavailable. Real HTTPS, the selected host and Moritz's phone remain deployment checks.
+**Current target: Vercel, selected by the owner on 9 September.** Its separate `sausage-health` project is created and linked, but no application deployment exists. Continue from [VERCEL.md](VERCEL.md): Neon Free database setup is awaiting the owner's Vercel login/terms acceptance; Postgres and private direct-file-upload adapters are not implemented yet. Do not request a VPS provider/IP again. The original Docker/local path below is retained as an alternative and test baseline, not the current cloud deployment command.
+
+No server has been rented. The Docker image was built and exercised in GitHub's Linux CI, including persistence across restart and backup creation; the local Docker engine is still unavailable. Cloud persistence, real HTTPS, phone use and complete cloud backup/restore remain deployment checks.
 
 ## Confirmed address
 
-The owner confirmed `ops.thesausageguy.shop` on 9 September 2026. The existing customer website stays at its current root/`www` addresses. No second domain registration is needed. Read-only DNS inspection points to Porkbun nameservers and a Vercel target for `www`. A Porkbun account page is open in the owner's browser; no DNS change has been made. The hosting target and IP are still missing.
+The owner confirmed `ops.thesausageguy.shop` on 9 September 2026 and subsequently selected Vercel. The existing customer website stays at its current root/`www` addresses. No second domain registration or VPS IP is needed. Read-only DNS inspection points to Porkbun nameservers and a Vercel target for `www`. No DNS change has been made.
 
-Once the owner selects the server and provides access/deployment authority, create only the required `ops` A/AAAA or provider-specified CNAME record. Keep root, `www`, email and existing DNS records intact. Configure TLS and `SH_ORIGIN=https://ops.thesausageguy.shop`. Verify both the customer site and the new private login afterwards. An Admin link in the customer site can be added under separate scope later; it simply navigates to the private app and never shares internal records or session cookies.
+After the private Vercel application works, create only the `ops` record specified by that project's domain settings. Keep root, `www`, email and existing DNS records intact. Configure TLS and `SH_ORIGIN=https://ops.thesausageguy.shop`. Verify both the customer site and the new private login afterwards. An Admin link in the customer site can be added under separate scope later; it simply navigates to the private app and never shares internal records or session cookies.
 
 ## The next handoff from the technical owner
 
-1. The hosting target: an existing VPS, or an approved new server configuration and cost. The hostname is already confirmed.
-2. Access to that target and its DNS through the appropriate local secret/credential mechanism, not a committed file or public chat paste.
+1. Complete the Vercel sign-in/Neon Free terms step described in `VERCEL.md`. Vercel CLI access is already verified; the project and hostname are selected.
+2. Verify the resulting private database/storage resources and configure the new cloud adapters. DNS uses the exact Vercel record target after the application works; preserve the existing customer website.
 3. Moritz's email is supplied and stored only in Git-ignored `.data/moritz-handoff.json`. Create his manager account for both stores on the selected host. Staff identities/assignments can follow. Account passwords are entered privately on the server. A first-records email was sent through the owner's Gmail on 9 September; it explicitly says login is not online yet. Do not resend it or claim an account exists.
 4. Later: read-only Loyverse access and store IDs; OpenRouter key and exact approved model with a provider-side spending cap. These are not needed to begin manual intake.
 

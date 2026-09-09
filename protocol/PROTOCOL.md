@@ -2,11 +2,12 @@
 
 - Mode: **1 — Autopilot**, explicitly requested 8 September 2026.
 - Brain: `memory/` relative to the repository root.
-- Active workstream: **shared intake pilot — hosting handoff**. Foundation completed and published with passing CI.
+- Active workstream: **shared intake pilot — Vercel storage setup**. Foundation completed and published with passing CI; cloud migration is unfinished.
 - Owner: user, technical/AI executive. Operational partner: Moritz. Agent: Codex implementation coordinator.
 - Scope: inspect related projects, research the initial context, preserve the brief, establish visual direction, build/validate an intake-first private web foundation, publish private source repository, and prepare the deployment/data handoff.
-- 9 September scope extensions, completed: restart/review/refine the workspace, then simplify copy following the owner's correction. `ops.thesausageguy.shop` is now confirmed. Moritz's contact was supplied privately and an explicitly authorized first-records email was sent and verified. No hosted login exists; the server/access and any new hosting cost remain unselected. Preserve the plain-copy preference and the original island.
+- 9 September scope extensions, completed: restart/review/refine the workspace, then simplify copy following the owner's correction. `ops.thesausageguy.shop` is now confirmed. Moritz's contact was supplied privately and an explicitly authorized first-records email was sent and verified. No hosted login exists yet. Preserve the plain-copy preference and the original island.
 - Consultation: decide routine implementation and the initial visual direction under delegated autopilot. Preserve design history; do not fabricate explicit owner verdicts.
+- Current hosting decision: owner selected Vercel. Created/linked separate `sausage-health` project; Neon Free setup awaits owner login/terms review. Continue from `docs/VERCEL.md`; no VPS/IP selection needed. Postgres/private Blob adapters, hosted accounts, deployment and target acceptance remain unfinished. No new paid plan/spend budget was approved.
 - Authorization: local implementation and testing, generated project assets, read-only inspection of the two named projects, and private GitHub publication. No implied authorization for purchases, ad spend, customer messages, stock/accounting writes, corporation filings, or production deployment to an unspecified target.
 - Initial milestone acceptance: real server-backed collection and original uploads; account/store boundaries; review and audit; honest phase/readiness UI; optional bounded AI text-draft seam; continuation context; local tests and rendered inspection; private repository; concrete missing-access list.
 - Future work: host/domain handoff, Moritz intake pilot, live Loyverse verification, reconciliation, measured optimization, customer workflows, then expansion. They are separate milestones.

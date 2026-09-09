@@ -2,7 +2,9 @@
 
 ## Decision
 
-Use a portable modular application: **React + TypeScript + Vite**, **FastAPI**, and **SQLite WAL + a private file volume**. The frontend and API are served from one origin in production. A single Docker container can sit behind HTTPS on a small VPS; hosting has not been selected or purchased. SQLite is appropriate for this bounded pilot with one API process. Multi-instance workers or unrelated customer businesses require a database and tenancy design before scaling.
+**9 September hosting update:** the owner selected Vercel. The implementation described below remains the current working local/container app. The proposed Vercel path uses Neon Postgres and private Vercel Blob; it requires persistence/upload/backup adapters before deployment. See `VERCEL.md` for the concrete resource setup, terms handoff and acceptance requirements. No migration, cloud records, hosted account or AI connection is claimed.
+
+The existing portable application uses **React + TypeScript + Vite**, **FastAPI**, and **SQLite WAL + a private file volume**. The frontend and API are served from one origin in the container. A single Docker container can sit behind HTTPS on a small VPS; this remains an alternative to the selected Vercel migration. SQLite suits the bounded local/container pilot with one API process. Multi-instance workers or unrelated customer businesses require a database and tenancy design before scaling.
 
 The foundation is evidence, explicit permissions, and durable state. A model runner is an interchangeable component. Model conversational memory is not the business database.
 
