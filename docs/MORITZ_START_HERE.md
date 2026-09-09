@@ -12,6 +12,10 @@ You do not need a perfectly organized business before using this. Start with wha
 
 Do this separately for the two stores. Shared overhead can use **Both stores**, with a note explaining how it is shared. Do not enter made-up numbers just to fill a gap; say “unknown.”
 
+The dashboard's **Your next small step** suggests a first source for the selected store. A “first source reviewed” label means someone checked that source's context; it does not mean that the month is complete or the figures are reconciled. **The journey** shows who does each phase and what needs checking before moving forward.
+
+If saving is interrupted, keep the page open and use **Retry the same update**. The details stay held until the server confirms the result. If the login expired, **Sign in and keep my draft** lets you continue as the same person. Avoid closing the browser or restarting the phone during this: offline draft storage is not built yet.
+
 ## The first batch to bring
 
 | Priority | Bring this | Why it helps |

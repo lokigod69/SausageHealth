@@ -1,6 +1,6 @@
 # Tropical Observatory · locked initial direction
 
-Based on `rounds/round-01/01-observatory.png`, selected under delegated autopilot. Values below are implementation choices estimated from the image, not sampled pixel measurements.
+Based on `rounds/round-01/01-observatory.png`, selected under delegated autopilot. On 9 September the owner explicitly liked the island artwork and asked to preserve the Tropical Observatory direction while refining the tropical game feeling and clarity. Values below are implementation choices estimated from the image, not sampled pixel measurements.
 
 ## Visual language
 
@@ -10,6 +10,7 @@ Quiet, dark, earthy workspace; one warm action; botanical greens; crisp pixel mo
 - Text `#eee9d9`; body-muted `#a3b3a5`; fine detail `#758b7d`.
 - Amber action `#e9b973` with dark ink; mint `#a3c6a1`.
 - Day variant uses paper `#f3f0e5`, text `#253d30`, and green boundaries. Same components and information order.
+- Day action amber was refined to `#956024` on 9 September for clearer separation, with day status text `#81521f`.
 - DM Sans 400/500/600 for interface copy. Cormorant Garamond 500 and italic for editorial titles. Fonts are bundled locally; no runtime third-party font fetch.
 - Desktop sidebar 230 px; content padding 40 px; max content 1570 px. Nested spacing predominantly 8–32 px. Panels 8–14 px corner radius; dialogs 17 px desktop / 13 px mobile.
 - Hero is two columns on wide screens, stacked below 951 px. Mobile title is 39 px, with the primary action before the artwork. Main navigation becomes an off-canvas drawer below 721 px; closed drawer is hidden from keyboard/assistive access.
@@ -31,3 +32,13 @@ Collection provides search, store filter, review status, refresh, and source dow
 ## Validation
 
 See `docs/VALIDATION.md` and `design/evidence/`. Desktop and phone rendering were inspected and the primary intake/review workflow was exercised with synthetic data. Browser viewport simulation is not a substitute for Moritz's actual device/network check before deployment.
+
+## 9 September · field guide refinement
+
+Implementation within the existing direction, without a new mockup round: the unchanged island appears beside an editorial chapter introduction, followed by four connected route stops. Selection explores requirements; it never advances or unlocks a phase. The selected phase names the responsible people, intended outcome, acceptance requirements and a likely failure with a response.
+
+The overview's first action area now shows one suggested source/review for the selected store, with separate first-sales-source signals for each accessible store. This replaces the generic list of three actions. Warm top-edge pixel details and subtle botanical surface gradients extend the game-like setting through CSS; the original raster was not regenerated, retouched or downscaled. The owner has not yet reviewed the final refined screen.
+
+At phone widths the coverage card uses one column, larger copy and a 44 px minimum action height. Decorative corner pixels are hidden there to avoid colliding with coverage text.
+
+Day/night roadmap, the four phase selections, mobile store-targeted capture, expand/collapse launch guidance, and the recovery form were inspected. Evidence is in `design/evidence/roadmap-*` and `docs/VALIDATION.md`.

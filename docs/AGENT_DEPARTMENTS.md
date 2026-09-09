@@ -13,7 +13,7 @@ The system coordinates work through durable database records and versioned polic
 
 ## Shared contract
 
-Every run has an actor, store scope, input version/hash, prompt version (tracked in Git), selected provider/model, status, output artifact, and a human-review state. A completed model response is not a completed store action. Future background jobs need idempotency, bounded retries, lease expiry, an outbox, and owner-visible failures before they can execute externally.
+The target contract for each department is an actor, store scope, input version/hash, prompt/schema version, selected provider/model, status, output artifact, and a human-review state. The current text adapter has actor/source digest/model/status/output; prompts are tracked in Git but a separate prompt version in run/cache identity and a proposal approval state are **not implemented**. Complete those and the sample evaluation before operational activation. A completed model response is not a completed store action. Future background jobs need idempotency, bounded retries, lease expiry, an outbox, and owner-visible failures before they can execute externally.
 
 Uploaded content and customer messages cannot grant tools or authority. Facts are retrieved through permission-filtered application services. Models should not receive unrestricted database, filesystem, purchase, bank, deployment, or developer-shell access.
 

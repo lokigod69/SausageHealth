@@ -34,14 +34,19 @@ npm run dev
 
 Open <http://127.0.0.1:5180>. The generated local-only login is in `.data/preview-login.json`. This file and the database are ignored by Git. Production gets new individual accounts; do not reuse the local preview database or password.
 
+For subsequent Windows sessions, run **`npm run start:local`**. It starts the missing API/frontend as hidden loopback processes, preserves existing records, checks their health and reuses project listeners. It refuses unrelated port conflicts. Paid AI is disabled for API processes it starts. Runtime PIDs/logs remain in `.data/`; this is a development helper, not an automatically hosted service.
+
 ## Validate
 
 ```powershell
 npm run build
+npm test
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
 See [validation evidence](docs/VALIDATION.md) for actual results and remaining deployment checks.
+
+CI also builds the Docker image and runs `python tests/container_smoke.py sausage-health:ci` against a disposable container/volume. See the [adversarial review](docs/ADVERSARIAL_REVIEW.md) for fixed findings and the remaining launch/integration gates.
 
 ## Start here next time
 

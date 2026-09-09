@@ -74,9 +74,11 @@ Sales, cash received, COGS, purchases, payments, profit, and cash flow are diffe
 
 ## Operational boundaries and limitations
 
-- No offline persistence: an in-progress form survives a failed request while the page remains open, but not a reload. Clear save confirmation is required. Offline capture/PWA is a later feature.
+- No offline persistence: an in-progress form survives a failed request and same-account reauthentication while the page remains open. An uncertain save keeps its payload/request key unchanged for retries; a dirty form requests a browser unload warning. Browser termination/reload can still lose unsaved state. Clear save confirmation is required. Offline capture/PWA is a later feature.
 - Request idempotency prevents retries duplicating the same submission; it does not reconcile two independently entered reports for the same day.
 - Original media is downloaded as an attachment, not executed or rendered as trusted HTML. No malware scanning or OCR has been implemented.
 - Password resets are an owner-run server command. No email service, self-service reset, MFA, or SSO yet.
 - Same-origin checks plus a custom request header protect state-changing endpoints; no wildcard CORS. Local server binds to loopback. Production requires HTTPS origin configuration.
 - Backup uses SQLite’s snapshot API and the attachments referenced in that snapshot. Backups contain sensitive business/account information and require protected off-host storage and an actual restore drill before live use.
+
+The 9 September review adds explicit deployment/integration gates in `docs/ADVERSARIAL_REVIEW.md`. Current AI runs do not record a separate prompt/schema version or proposal approval state; add these before operational AI activation. Starter-source hints are derived from accessible per-store records and never certify accounting coverage or advance a phase. Collection loading is still unpaginated; bulk ingestion requires server-side pagination/filtering and measured load checks.
