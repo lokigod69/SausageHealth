@@ -18,6 +18,8 @@ Sausage Health is the private intake workspace for The Sausage Guy and Natural M
 
 Private repository: https://github.com/lokigod69/SausageHealth . Source commit `87c802d`, passing CI https://github.com/lokigod69/SausageHealth/actions/runs/34305458943 (26 tests, frontend build, Docker build and container smoke). Source is published; no public application deployment or background agent service exists.
 
+Latest Vercel setup/documentation checkpoint: `1e06ae3`, passing CI https://github.com/lokigod69/SausageHealth/actions/runs/34310277503 (all 26 tests and frontend/container build/smoke repeated successfully). Application code is unchanged; this does not verify a Vercel deployment or cloud adapters.
+
 Local preview: http://127.0.0.1:5180 . Restart next time with `npm run start:local` on Windows; it preserves data and starts/reuses verified loopback listeners. Logs/PIDs and generated local credentials are in Git-ignored `.data/`. Never publish this directory or reuse the local preview database/password in production. Local Docker engine remains unavailable; packaging was exercised in hosted Linux CI.
 
 Latest copy pass: desktop 1440×1000 and mobile 390×844 login, overview and roadmap inspected; no horizontal overflow. Signed out and back in, opened intake and checked store/category/form labels. Preview was restarted and opened in a fresh tab after the old tab retained a connection-error page. Original island bytes are unchanged. Screenshots: `design/evidence/plain-*`.
