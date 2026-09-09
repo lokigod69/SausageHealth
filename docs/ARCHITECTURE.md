@@ -2,9 +2,9 @@
 
 ## Decision
 
-**9 September hosting update:** the owner selected Vercel. The implementation described below remains the current working local/container app. The proposed Vercel path uses Neon Postgres and private Vercel Blob; it requires persistence/upload/backup adapters before deployment. See `VERCEL.md` for the concrete resource setup, terms handoff and acceptance requirements. No migration, cloud records, hosted account or AI connection is claimed.
+**9 September hosting update:** deployed at https://ops.thesausageguy.shop. React/TypeScript/Vite and FastAPI/Python 3.12 run on Vercel; Neon Postgres stores accounts, records and audit, and private Vercel Blob stores immutable originals. A small Node function signs tightly bounded direct upload/download permissions. Full implementation, deployment and real recovery evidence are in `VERCEL.md`; actual phone acceptance remains pending.
 
-The existing portable application uses **React + TypeScript + Vite**, **FastAPI**, and **SQLite WAL + a private file volume**. The frontend and API are served from one origin in the container. A single Docker container can sit behind HTTPS on a small VPS; this remains an alternative to the selected Vercel migration. SQLite suits the bounded local/container pilot with one API process. Multi-instance workers or unrelated customer businesses require a database and tenancy design before scaling.
+SQLite WAL and a private local file volume remain the tested local/container alternative, with one API process. Cloud critical writes use a Postgres transaction advisory lock to preserve idempotency, quota and review concurrency across functions. This is a small single-workspace pilot, not a multi-business tenancy design.
 
 The foundation is evidence, explicit permissions, and durable state. A model runner is an interchangeable component. Model conversational memory is not the business database.
 
@@ -31,6 +31,7 @@ Solid connections exist in this repository, although external AI is disabled unt
 - `sessions`: hashed opaque tokens, 12-hour expiry; HttpOnly/SameSite cookies and HTTPS-only cookies in production.
 - `entries`: immutable original note, category, store, source date, submitter, timestamp, request key, review version.
 - `attachments`: original bytes under random IDs outside public assets, safe download name, SHA-256, length, parent entry.
+- `upload_intents`: bound submission manifest, author, exact-payload hash, expiry and finalized entry; direct file uploads only become records after server hash/size verification.
 - `audit`: actor, action, subject, timestamp; application append-only history in the pilot (not a tamper-proof accounting audit system).
 - `ai_runs`: actor, source digest, selected model, call reservation, draft/failure state, source-linked output.
 
@@ -81,6 +82,6 @@ Sales, cash received, COGS, purchases, payments, profit, and cash flow are diffe
 - Original media is downloaded as an attachment, not executed or rendered as trusted HTML. No malware scanning or OCR has been implemented.
 - Password resets are an owner-run server command. No email service, self-service reset, MFA, or SSO yet.
 - Same-origin checks plus a custom request header protect state-changing endpoints; no wildcard CORS. Local server binds to loopback. Production requires HTTPS origin configuration.
-- Backup uses SQLite’s snapshot API and the attachments referenced in that snapshot. Backups contain sensitive business/account information and require protected off-host storage and an actual restore drill before live use.
+- Cloud backup uses a repeatable-read Postgres snapshot plus referenced immutable originals, encrypted off-provider with hashes and sessions excluded. A real separate-schema/prefix restore passed. Local backup retains SQLite snapshot behavior. No recurring backup schedule is installed; see VERCEL.md for ownership and recovery limits.
 
 The 9 September review adds explicit deployment/integration gates in `docs/ADVERSARIAL_REVIEW.md`. Current AI runs do not record a separate prompt/schema version or proposal approval state; add these before operational AI activation. Starter-source hints are derived from accessible per-store records and never certify accounting coverage or advance a phase. Collection loading is still unpaginated; bulk ingestion requires server-side pagination/filtering and measured load checks.

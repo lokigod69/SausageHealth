@@ -42,3 +42,11 @@ Porkbun supports a subdomain in the Host field of a DNS record; no second domain
 No DNS records, related repositories, production services, AI spending, or customer channels were changed in this review.
 
 Owner follow-up: invitation/password-reset copy and motivational slogans were rejected and removed. Functional labels replace chapter/pep-talk copy; Help is optional and deployment details are owner-only. This preserves the original island and the roadmap's evidence requirements. Moritz's contact was supplied privately and one authorized first-records email was sent; this is not a hosted account or a pilot launch.
+
+## Cloud milestone update · 9 September, after deployment
+
+The historical pending-host and untested-cloud statements above are superseded by `VERCEL.md` and the latest `VALIDATION.md` section. The selected ops site is deployed, separate logins exist, HTTPS/private access and real 6 MiB browser upload/review/download/redeployment passed, and a complete encrypted cloud-source restore was exercised. Root/www and related repositories are preserved.
+
+Actual failure findings were fixed: Vercel's requirements include parser rejected one release; flat pins resolved it. Browser CSP initially blocked the official SDK's control-plane upload URL; the tested origin is now allowed and HTML no-store/new ETag prevents old policy retention. Existing-object HTTP400 is passed only to full final hash verification, never interpreted as success itself.
+
+Remaining priority: actual phone/camera/store-network acceptance; then ongoing backup cadence/retention/key custody and usage/failure ownership before routine operation. The one-time encrypted archive is local and the key currently resides on the same machine. Existing Pro Blob usage is billed; the app's 1 GiB bound is not a monetary cap. No offline queue, automatic backup worker, live model or live POS exists. Do not announce complete shared-pilot acceptance yet.

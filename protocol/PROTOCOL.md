@@ -1,17 +1,16 @@
 # Sausage Health · Protocol OS
 
 - Mode: **1 — Autopilot**, explicitly requested 8 September 2026.
-- Brain: `memory/` relative to the repository root.
-- Active workstream: **shared intake pilot — Vercel storage setup**. Foundation completed and published with passing CI; cloud migration is unfinished.
-- Owner: user, technical/AI executive. Operational partner: Moritz. Agent: Codex implementation coordinator.
-- Scope: inspect related projects, research the initial context, preserve the brief, establish visual direction, build/validate an intake-first private web foundation, publish private source repository, and prepare the deployment/data handoff.
-- 9 September scope extensions, completed: restart/review/refine the workspace, then simplify copy following the owner's correction. `ops.thesausageguy.shop` is now confirmed. Moritz's contact was supplied privately and an explicitly authorized first-records email was sent and verified. No hosted login exists yet. Preserve the plain-copy preference and the original island.
-- Consultation: decide routine implementation and the initial visual direction under delegated autopilot. Preserve design history; do not fabricate explicit owner verdicts.
-- Current hosting decision: owner selected Vercel. Created/linked separate `sausage-health` project; Neon Free setup awaits owner login/terms review. Continue from `docs/VERCEL.md`; no VPS/IP selection needed. Postgres/private Blob adapters, hosted accounts, deployment and target acceptance remain unfinished. No new paid plan/spend budget was approved.
-- Authorization: local implementation and testing, generated project assets, read-only inspection of the two named projects, and private GitHub publication. No implied authorization for purchases, ad spend, customer messages, stock/accounting writes, corporation filings, or production deployment to an unspecified target.
-- Initial milestone acceptance: real server-backed collection and original uploads; account/store boundaries; review and audit; honest phase/readiness UI; optional bounded AI text-draft seam; continuation context; local tests and rendered inspection; private repository; concrete missing-access list.
-- Future work: host/domain handoff, Moritz intake pilot, live Loyverse verification, reconciliation, measured optimization, customer workflows, then expansion. They are separate milestones.
+- Brain: `memory/` relative to repository root.
+- Active workstream: **shared intake pilot — deployed, actual-phone acceptance pending**.
+- Owner: user, technical/AI executive. Moritz supplies/reviews operations. Codex coordinates implementation.
+- Completed: intake foundation, private GitHub publication, roadmap/resilience/copy review, selected Vercel/Neon/private Blob implementation, individual accounts, ops DNS/HTTPS, cloud upload/review/download/redeployment and real encrypted backup/restore.
+- Current decision: owner selected Vercel and `ops.thesausageguy.shop`, completed Neon terms and asked to continue. The app is deployed to that specific target. No provider/IP handoff remains. Preserve the original island, plain copy and existing related repositories.
+- Scope boundary: local work, private source publication and the specifically selected hosting milestone are authorized. No general permission for purchases, new paid plans/budgets, ad spend, customer messages, stock/accounting writes, corporation filings or unrelated production targets. Existing Pro Blob is usage-billed; quota is not a dollar budget.
+- Shared pilot acceptance still needs a real phone/camera/store-network upload, original reopening and second-account review. Browser simulation is not that evidence. Take another complete backup after the first real intake; establish recurring recovery operations before routine use.
+- AI and Loyverse remain unconnected and separately gated. Unknown is not zero; reviewed sources do not certify profit.
+- Consultation: make routine implementation decisions within the requested milestone; technical architecture belongs to the owner. Preserve decisions and evidence before updating protocol status. A backlog is not permission to work unattended.
 
 ## Resume
 
-Read `protocol/NEXT_STEP.md`, `memory/INDEX.md`, and `memory/STATE.md`. Verify the current repository state and the active request. Load deeper docs only as needed. Save changed durable knowledge first, then update the next-step/board/log at meaningful milestones. No timer, hidden recurring worker, or Orrery telemetry is installed.
+Read `protocol/NEXT_STEP.md`, `memory/INDEX.md`, `memory/STATE.md` and the latest publication/CI log. Follow `docs/VERCEL.md` for the deployed cloud path; the Docker runbook is a retained alternative. No hidden recurring worker or Orrery telemetry is installed.
