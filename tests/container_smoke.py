@@ -78,6 +78,8 @@ def main(image):
         assert json.loads(request('/api/entries', payload, upload_headers, 201)[0])['id'] == entry['id']
         assert entry['attachments'][0]['sha256'] == hashlib.sha256(original).hexdigest()
         docker('restart', container)
+        # Docker can assign a new ephemeral host port on restart.
+        base = 'http://' + docker('port', container, '8080/tcp')
         ready()
         saved = json.loads(request('/api/entries', headers=headers)[0])
         assert len(saved) == 1 and saved[0]['id'] == entry['id']
@@ -87,7 +89,8 @@ def main(image):
         docker('exec', container, 'python', '-c', 'import zipfile; z=zipfile.ZipFile("/data/smoke-backup.zip"); assert z.testzip() is None; assert "sausagehealth.sqlite" in z.namelist(); assert len([n for n in z.namelist() if n.startswith("uploads/")]) == 1')
         print('Container passed: non-root, bundled UI, production headers, private routes, original upload, idempotency, restart persistence, review and backup.')
     except BaseException:
-        print(docker('logs', container, check=False), file=sys.stderr)
+        logs = subprocess.run(['docker', 'logs', container], capture_output=True, text=True)
+        print(logs.stdout + logs.stderr, file=sys.stderr)
         raise
     finally:
         docker('rm', '-f', container, check=False)
