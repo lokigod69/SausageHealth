@@ -586,8 +586,8 @@ function Capture({
             </p>
           )}
           <p className="capture-note">
-            <ShieldCheck size={15} /> Originals are saved privately. This update
-            will wait for review.
+            <ShieldCheck size={15} /> Originals will be saved privately. This
+            update will wait for review.
           </p>
           <div className="modal-actions">
             <button
