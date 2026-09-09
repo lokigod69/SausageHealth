@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { starterTasks } from "../src/readiness.ts";
-import { api, ApiError } from "../src/api.ts";
+import { api, ApiError, submitEntry } from "../src/api.ts";
 
 const owner = { id: "owner", role: "owner", stores: ["sausage", "health"] };
 const source = (patch = {}) => ({
@@ -97,4 +97,49 @@ test("a truncated success response is also an unknown write outcome", async (t) 
     api("/entries", { method: "POST" }),
     (error) => error instanceof ApiError && error.status === undefined,
   );
+});
+
+test("an existing private upload still uploads remaining files and requires final verification", async (t) => {
+  const form = new FormData();
+  for (const [key, value] of Object.entries({store:'both',category:'other',title:'Test',notes:'Synthetic',
+    occurred_on:'2026-09-09',request_key:'test-key-1111111111'})) form.append(key, value);
+  form.append('files', new File(['first original'], 'first.txt'));
+  form.append('files', new File(['second original'], 'second.txt'));
+  let uploads = 0;
+  let finalized = false;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (url === '/api/system') return Response.json({ upload_mode: 'direct' });
+    if (url === '/api/upload-intents') {
+      const manifest = JSON.parse(init.body);
+      assert.equal(manifest.request_key, 'test-key-1111111111');
+      assert.equal(manifest.files.length, 2);
+      assert.match(manifest.files[0].sha256, /^[a-f0-9]{64}$/);
+      return Response.json({ id: 'intent', files: [{ grant: 'one' }, { grant: 'two' }] });
+    }
+    if (url === '/api/storage') return Response.json({ url: 'https://storage.example/upload' });
+    if (url === 'https://storage.example/upload') {
+      assert.equal(init.credentials, 'omit');
+      uploads++;
+      return uploads === 1 ? Response.json({ error: { code: 'bad_request' } }, { status: 400 }) : Response.json({});
+    }
+    assert.equal(url, '/api/upload-intents/intent/finalize');
+    assert.equal(uploads, 2);
+    finalized = true;
+    return Response.json({ id: 'verified-record' }, { status: 201 });
+  });
+  assert.equal((await submitEntry(form)).id, 'verified-record');
+  assert.equal(finalized, true);
+});
+
+test("a private upload is not reported saved when final checksum verification fails", async (t) => {
+  const form = new FormData();
+  form.append('files', new File(['test'], 'test.txt'));
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url === '/api/system') return Response.json({ upload_mode: 'direct' });
+    if (url === '/api/upload-intents') return Response.json({ id: 'intent', files: [{ grant: 'one' }] });
+    if (url === '/api/storage') return Response.json({ url: 'https://storage.example/upload' });
+    if (url === 'https://storage.example/upload') return Response.json({}, { status: 400 });
+    return Response.json({ detail: 'The original file could not be verified.' }, { status: 503 });
+  });
+  await assert.rejects(submitEntry(form), error => error instanceof ApiError && error.status === 503);
 });
