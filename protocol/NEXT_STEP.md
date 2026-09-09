@@ -2,7 +2,7 @@
 
 ## FOR YOU
 
-The refined island workspace is running locally, the adversarial review is saved, and source `68b633f` passed 26 tests plus Docker build/runtime checks in private GitHub CI. Restart future Windows sessions with `npm run start:local`. The proposed address is `ops.thesausageguy.shop`; the existing public site's DNS points to Porkbun/Vercel. Confirm the hostname and hosting target, then provide the appropriate private access and Moritz's account email. No second domain purchase is needed for a subdomain.
+The refined island workspace is running locally, the adversarial review is saved, and source `bd678e4` passed 26 tests plus Docker build/runtime checks in private GitHub CI. Restart future Windows sessions with `npm run start:local`. The proposed address is `ops.thesausageguy.shop`; the existing public site's DNS points to Porkbun/Vercel. Confirm the hostname and hosting target, then provide the appropriate private access and Moritz's account email. No second domain purchase is needed for a subdomain.
 
 Before sharing the pilot, verify the chosen host's HTTPS, individual accounts, Moritz's actual phone upload/review, restart persistence, and off-host backup/restore. Moritz's first task is one recent daily sales source from each store, then a receipt. The app and `docs/MORITZ_START_HERE.md` guide him. See `docs/ADVERSARIAL_REVIEW.md` for the remaining integration gates.
 

@@ -16,7 +16,7 @@ Sausage Health is the private intake workspace for The Sausage Guy and Natural M
 
 ## Delivery
 
-Private repository: https://github.com/lokigod69/SausageHealth . Source commit `68b633f`, passing CI https://github.com/lokigod69/SausageHealth/actions/runs/34297084565 . Source is published; no public application deployment or background agent service exists.
+Private repository: https://github.com/lokigod69/SausageHealth . Source commit `bd678e4`, passing CI https://github.com/lokigod69/SausageHealth/actions/runs/34297518065 . Source is published; no public application deployment or background agent service exists.
 
 Local preview: http://127.0.0.1:5180 . Restart next time with `npm run start:local` on Windows; it preserves data and starts/reuses verified loopback listeners. Logs/PIDs and generated local credentials are in Git-ignored `.data/`. Never publish this directory or reuse the local preview database/password in production. Local Docker engine remains unavailable; packaging was exercised in hosted Linux CI.
 
