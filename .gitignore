@@ -14,3 +14,5 @@ test-results/
 playwright-report/
 *.tsbuildinfo
 artifacts/private/
+# Business exports dropped at the root are private intake, never source code.
+/*.csv
