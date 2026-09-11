@@ -2,6 +2,8 @@
 
 The first batch is in ignored `.data/intake/2026-09-11-loyverse/`. Its two CSV originals were moved from the project root without changing their bytes, with SHA-256 verification. They and a separate first-review report are also saved through the live app's authenticated collection. Original receipt cashier fields stay private; the derived report does not repeat them.
 
+The follow-up API batch is `.data/intake/2026-09-11-loyverse-api/`; see [LOYVERSE_READ_ONLY.md](LOYVERSE_READ_ONLY.md). The current **Loyverse API review — matched to first exports** supplies new evidence and supersedes the old report's commercial next-step suggestions. The owner has limited the current milestone to collecting, reconciling and understanding. All source and review versions stay preserved.
+
 ## Storage and provenance
 
 - `originals/`: untouched incoming files. Never clean or save an edited version over them.
@@ -23,7 +25,7 @@ python scripts/analyze_loyverse_exports.py --items PRIVATE_ITEMS.csv --receipts 
 
 It requires known headers, unique SKU and store/POS/receipt keys, finite numeric values, supported receipt signs/statuses and resolvable shared variant fields. Composite-component rows or conflicting shared fields require explicit mapping. Variable prices remain variable. Missing stock/cost values remain missing. Refund amounts retain their negative source signs; no second subtraction. Equations are checked separately from sums. Receipt descriptions are not a substitute for SKU-level sale lines.
 
-Analysis output identifies unconfirmed currency, timezone and filters. A catalogue is an undated snapshot unless an export time is supplied. Boundary dates are not certified complete days; a date with no rows is not assigned zero sales. Cross-batch receipt deduplication, generalized composite parsing and a ledger are not implemented. Do not aggregate overlapping batch summaries.
+CSV-only analysis identifies unconfirmed currency, timezone and filters. A later API source can resolve a specific uncertainty, with its evidence, without rewriting the first report. The first API comparison confirms account currency and receipt-minute alignment at UTC+8, not the configured timezone or source filters. A catalogue is an undated snapshot unless an export time is supplied. Boundary dates are not certified complete days; a date with no rows is not assigned zero sales. The offline comparator reports CSV/API overlap; a persistent deduplication ledger, generalized composite parsing and automatic sync are not implemented. Do not aggregate overlapping batch summaries.
 
 ## Publish and review
 
