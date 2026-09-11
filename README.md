@@ -59,7 +59,7 @@ CI also builds the Docker image and runs `python tests/container_smoke.py sausag
 
 ## Scope
 
-This is a functional **intake foundation**, not a verified financial dashboard or an autonomous retail operation. Loyverse is not connected, stock is not live, and profit is unknown. OCR, audio transcription, POS sync, financial reconciliation, customer messaging, checkout, ads, and other specialist agents are subsequent milestones. Roadmap and Agent Team screens make that distinction visible.
+This is a functional **intake foundation**, not a verified financial dashboard or an autonomous retail operation. A manual read-only Loyverse import and CSV/API source comparison have passed; see [docs/LOYVERSE_READ_ONLY.md](docs/LOYVERSE_READ_ONLY.md). The website does not synchronize with Loyverse automatically, stock is not live, and profit remains unknown. Current work is collecting and understanding records; commercial experiments are deferred. OCR, audio transcription, recurring POS sync, cash/settlement reconciliation, customer messaging, checkout, ads and other specialist agents are subsequent milestones.
 
 The existing website in `D:/CODING/SAUSAGE` and procurement app in `D:/CODING/LOYVERSE` remain independent and unchanged. Sausage Health will integrate with them through explicit interfaces after live verification.
 

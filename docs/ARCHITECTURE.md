@@ -25,6 +25,8 @@ flowchart LR
 
 Solid connections exist in this repository, although external AI is disabled until configured. Dotted connections are planned, not live.
 
+A separate owner-run GET-only Loyverse capture was verified and imported through the existing collection on 11 September. The offline CSV/API comparator validates a bounded source contract; it is not a runtime synchronization service or financial ledger. Credentials remain in private local admin storage. See [LOYVERSE_READ_ONLY.md](LOYVERSE_READ_ONLY.md) for scope, source provenance and the remaining incremental-sync/unit/coverage work. This does not change the architecture or the read-only boundary around related repositories.
+
 ## Implemented entities
 
 - `users`: separate credentials, role, assigned store IDs.

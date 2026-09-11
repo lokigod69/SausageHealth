@@ -3,6 +3,7 @@
 - [STATE.md](STATE.md): current verified state and missing external inputs.
 - Private contact/sent-email handoff: Git-ignored `.data/moritz-handoff.json` on this machine. Never copy contact details into tracked memory; do not resend the initial email.
 - Private first intake: `.data/intake/2026-09-11-loyverse/`; live Collection holds both originals and the first review. See [../docs/DATA_INTAKE.md](../docs/DATA_INTAKE.md) for provenance and [../docs/BUSINESS_MEASUREMENT_PLAN.md](../docs/BUSINESS_MEASUREMENT_PLAN.md) for decisions and required measures.
+- Current private API intake: `.data/intake/2026-09-11-loyverse-api/`; use validated analysis-v2 and the latest API review. [../docs/LOYVERSE_READ_ONLY.md](../docs/LOYVERSE_READ_ONLY.md) records verified manual access, overlap and limits. The token stays in ignored admin storage, never this index or Git. Feeding/digestion remains the scope; commercial experiments are deferred.
 - [BRIEF.md](BRIEF.md): structured capture of the founder's brief, uncertainties preserved.
 - [DECISIONS.md](DECISIONS.md): decisions, reasons, and delegated authority.
 - [LOG.md](LOG.md): meaningful session narrative.
