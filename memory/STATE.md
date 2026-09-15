@@ -1,4 +1,8 @@
-# Current state · 11 September 2026
+# Current state · 15 September 2026
+
+## Latest handoff
+
+The owner requested a printable document to forward to Moritz and clarification of online login. Verified the hosted homepage and Moritz's existing login on 15 September: HTTPS works and all seven updates/sixteen attachments remain visible, none human-reviewed. Created a visually checked three-page PDF and a separate Moritz-only login TXT in ignored `.data/handoffs/2026-09-15-moritz/`. The PDF covers login/upload/review, prioritized source requests, the real-phone check and owner setup responsibilities. No passwords/API tokens are in the PDF, and no owner credentials are in the Moritz login file. The owner is to forward these; no email/message was sent and no application record or deployment changed. The exact immediate handoff is to send both files, then Moritz logs in and completes the first source/phone steps. Remaining business inputs and gates below are unchanged.
 
 ## Active milestone
 
