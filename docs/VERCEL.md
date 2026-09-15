@@ -11,7 +11,8 @@ Live: https://ops.thesausageguy.shop . Individual owner and Moritz accounts exis
 | Original files | Private Vercel Blob `sausage-health-originals`, `sin1`; resource `store_J4a1IsdYxssy35mI`; production prefix `pilot` |
 | Source | Private GitHub `lokigod69/SausageHealth`; no records, files or credentials |
 | Recovery copy | Encrypted database-and-files archive on the owner's local machine, outside Git and outside Vercel/Neon |
-| AI / Loyverse | Not connected. The Items page is deployed but reports "Loyverse is not connected yet" until `SH_LOYVERSE_ENABLED=1` and a credential are set in this environment; no background specialist agents and no live stock |
+| AI | Not connected; no background specialist agents |
+| Loyverse | Catalogue read connected 16 September, GET only and on request. No schedule, webhook or POS write. Stock is a dated snapshot, not live |
 
 No paid plan was upgraded. Neon uses Free. Blob uses the team's existing Pro plan and is usage-billed. The application reserves at most **1 GiB** of uploads and allows 30 submissions per user per day; this is not a dollar spending cap. No new paid plan or monetary budget was approved. Inspect usage before raising limits or expanding the pilot.
 
@@ -25,7 +26,7 @@ Previous runtime `e89483d`, deployment `dpl_8kFt6q4TwTfp7N3wdyHEuUM4XgUu`, [CI r
 
 Porkbun has one new CNAME: `ops` to `9ef3c8616efcf012.vercel-dns-016.com.` (TTL 600). The three existing root/wildcard/www records were preserved. The existing public `/panglao` page still returned HTTPS 200. Vercel deployment protection remains enabled for deployment URLs; the custom domain uses the application's login. Do not disable that protection globally or merge the public site's authentication.
 
-The production environment includes `SH_ENV=production`, exact `SH_ORIGIN=https://ops.thesausageguy.shop`, `SH_DATABASE_BACKEND=postgres`, `DATABASE_URL`, `SH_STORAGE=blob`, `BLOB_READ_WRITE_TOKEN`, `SH_STORAGE_SIGNING_KEY`, `SH_AI_ENABLED=0` and the upload reservation limit. No `SH_LOYVERSE_*` variable is set: deploying the Items page does not connect the POS, and placing that broad personal token in this runtime is a separate owner decision. Secrets are only in Vercel and ignored `.env.cloud` / `.data/`. Private resources are not linked to previews. Local/CI tests use isolated databases or schemas.
+The production environment includes `SH_ENV=production`, exact `SH_ORIGIN=https://ops.thesausageguy.shop`, `SH_DATABASE_BACKEND=postgres`, `DATABASE_URL`, `SH_STORAGE=blob`, `BLOB_READ_WRITE_TOKEN`, `SH_STORAGE_SIGNING_KEY`, `SH_AI_ENABLED=0` and the upload reservation limit. On 16 September the owner explicitly asked to connect the POS, so `SH_LOYVERSE_ENABLED=1`, `SH_LOYVERSE_TOKEN` and `SH_LOYVERSE_STORE_MAP` were added to Production and the app redeployed. The Loyverse credential is a personal access token with broad account permissions; this application only ever issues GETs, but the token in this runtime is capable of more, so rotate it in the Loyverse back office if the environment is ever suspect and update the variable here at the same time. Secrets are only in Vercel and ignored `.env.cloud` / `.data/`. Private resources are not linked to previews. Local/CI tests use isolated databases or schemas.
 
 ```powershell
 vercel deploy --prod --yes --scope lokigod69s-projects
