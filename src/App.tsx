@@ -59,13 +59,21 @@ import {
   type User,
 } from "./api";
 
+import { Items } from "./Items";
 import { Journey, NextStep } from "./Journey";
 
 type Page =
-  "overview" | "collection" | "stores" | "roadmap" | "team" | "settings";
+  | "overview"
+  | "collection"
+  | "items"
+  | "stores"
+  | "roadmap"
+  | "team"
+  | "settings";
 const navItems = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "collection", label: "Collection", icon: BookOpen },
+  { id: "items", label: "Items", icon: Package, roles: ["owner", "manager"] },
   { id: "stores", label: "Stores", icon: StoreIcon },
   { id: "roadmap", label: "Roadmap", icon: Map },
   { id: "team", label: "AI tools", icon: Sparkles },
@@ -1033,6 +1041,7 @@ export default function App() {
       ? "Overview"
       : {
           collection: "Collection",
+          items: "Items",
           stores: "Stores",
           roadmap: "Roadmap",
           team: "AI tools",
@@ -1066,21 +1075,27 @@ export default function App() {
           WORKSPACE <span>01</span>
         </div>
         <nav aria-label="Main navigation">
-          {navItems.map((n) => (
-            <button
-              key={n.id}
-              className={`nav-item ${page === n.id ? "active" : ""}`}
-              onClick={() => navigate(n.id)}
-              aria-current={page === n.id ? "page" : undefined}
-            >
-              <n.icon size={19} />
-              <span>{n.label}</span>
-              {n.id === "collection" && entries.length > 0 && (
-                <small>{entries.length}</small>
-              )}
-              {page === n.id && <i />}
-            </button>
-          ))}
+          {navItems
+            .filter(
+              (n) =>
+                !("roles" in n) ||
+                (n.roles as readonly string[]).includes(user.role),
+            )
+            .map((n) => (
+              <button
+                key={n.id}
+                className={`nav-item ${page === n.id ? "active" : ""}`}
+                onClick={() => navigate(n.id)}
+                aria-current={page === n.id ? "page" : undefined}
+              >
+                <n.icon size={19} />
+                <span>{n.label}</span>
+                {n.id === "collection" && entries.length > 0 && (
+                  <small>{entries.length}</small>
+                )}
+                {page === n.id && <i />}
+              </button>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="phase-mini">
@@ -1514,6 +1529,17 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+
+          {page === "items" && user.role !== "staff" && (
+            <>
+              <p className="page-intro">
+                Every item, variant, price and stock figure this workspace has
+                read from Loyverse. It is a dated copy for reading, not a live
+                till: nothing here changes the POS.
+              </p>
+              <Items user={user} scope={scope} />
             </>
           )}
 

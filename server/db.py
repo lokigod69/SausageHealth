@@ -132,6 +132,12 @@ def initialize():
           payload_hash TEXT NOT NULL, files TEXT NOT NULL, expires REAL NOT NULL,
           created_at TEXT NOT NULL, entry_id TEXT REFERENCES entries(id)
         );
+        CREATE TABLE IF NOT EXISTS loyverse_syncs (
+          id TEXT PRIMARY KEY, actor_id TEXT NOT NULL REFERENCES users(id),
+          started_at TEXT NOT NULL, finished_at TEXT, status TEXT NOT NULL,
+          payload TEXT, error TEXT, request_count INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS loyverse_syncs_by_time ON loyverse_syncs(started_at);
         PRAGMA user_version=1;
         ''')
 

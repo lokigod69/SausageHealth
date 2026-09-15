@@ -203,3 +203,130 @@ export function fileSize(size: number) {
     ? `${Math.max(1, Math.round(size / 1024))} KB`
     : `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
+
+export type WorkspaceStore = "sausage" | "health";
+export type StockState =
+  "tracked" | "not_tracked" | "unknown" | "components_only";
+export type LoyverseCurrency = {
+  code: string | null;
+  decimal_places: number | null;
+};
+export type LoyverseStoreRow = {
+  store_id: string;
+  store_name: string | null;
+  workspace_store: WorkspaceStore | null;
+  settings_present: boolean;
+  available_for_sale: boolean | null;
+  pricing_type: string | null;
+  price: string | null;
+  optimal_stock: string | null;
+  low_stock: string | null;
+  stock_state: StockState;
+  in_stock: string | null;
+  stock_updated_at: string | null;
+  below_optimal: string | null;
+  low_stock_alert: boolean;
+};
+export type LoyverseVariant = {
+  variant_id: string;
+  sku: string | null;
+  barcode: string | null;
+  options: (string | null)[];
+  cost: string | null;
+  default_price: string | null;
+  default_pricing_type: string | null;
+  updated_at: string | null;
+  stores: LoyverseStoreRow[];
+};
+export type LoyverseItem = {
+  id: string;
+  name: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  track_stock: boolean;
+  sold_by_weight: boolean;
+  is_composite: boolean;
+  use_production: boolean;
+  option_names: (string | null)[];
+  updated_at: string | null;
+  variants: LoyverseVariant[];
+};
+export type LoyverseCounts = {
+  stores: number;
+  mapped_stores: number;
+  items: number;
+  variants: number;
+  variant_store_rows: number;
+  tracked: number;
+  not_tracked: number;
+  components_only: number;
+  unknown_stock: number;
+  below_optimal: number;
+  low_stock_alerts: number;
+  optimal_stock_set: number;
+  unavailable: number;
+};
+export type LoyverseCatalogue = {
+  schema_version: number;
+  captured_at: string;
+  currency: LoyverseCurrency | null;
+  stores: {
+    id: string;
+    name: string | null;
+    workspace_store: WorkspaceStore | null;
+  }[];
+  unmatched_store_mapping?: string[];
+  categories: { id: string; name: string | null }[];
+  items: LoyverseItem[];
+  counts: LoyverseCounts;
+  limitations: string[];
+};
+export type LoyverseView = {
+  connection: "ready" | "not_connected" | "credential_missing";
+  can_refresh: boolean;
+  last_attempt: {
+    status: string;
+    started_at: string;
+    finished_at: string | null;
+    error: string | null;
+  } | null;
+  catalogue: LoyverseCatalogue | null;
+  captured_at: string | null;
+};
+
+/** Trim trailing zeros for display only. The exact source value is never rounded. */
+export function quantity(value: string | null) {
+  if (value === null) return null;
+  if (!value.includes(".")) return value;
+  const trimmed = value.replace(/0+$/, "").replace(/\.$/, "");
+  return trimmed === "" || trimmed === "-" ? "0" : trimmed;
+}
+
+/** Pad to the account's decimal places. Never shortens, so no value is altered. */
+export function money(value: string | null, currency: LoyverseCurrency | null) {
+  if (value === null) return null;
+  const places = currency?.decimal_places ?? null;
+  let shown = value;
+  if (places !== null && places > 0) {
+    const [whole, fraction = ""] = value.split(".");
+    shown = `${whole}.${fraction.length >= places ? fraction : fraction.padEnd(places, "0")}`;
+  }
+  return currency?.code ? `${currency.code} ${shown}` : shown;
+}
+
+export const stockStateNames: Record<StockState, string> = {
+  tracked: "In stock",
+  not_tracked: "Not tracked",
+  unknown: "Unknown",
+  components_only: "Components only",
+};
+export function timeLabel(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Manila",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}

@@ -18,14 +18,17 @@ flowchart LR
   Draft --> Router[OpenRouter: configured model]
   Router --> Proposal[Source-linked draft]
   Proposal --> Human[Human review]
-  POS[Loyverse: future read-only sync] -.-> API
+  API --> Catalogue[Loyverse catalogue snapshot]
+  POS[Loyverse: GET-only catalogue read] --> Catalogue
   Procure[Existing ProcurePilot app] -.-> API
   Public[Existing customer website] -.-> Approved[Future approved public catalog]
 ```
 
 Solid connections exist in this repository, although external AI is disabled until configured. Dotted connections are planned, not live.
 
-A separate owner-run GET-only Loyverse capture was verified and imported through the existing collection on 11 September. The offline CSV/API comparator validates a bounded source contract; it is not a runtime synchronization service or financial ledger. Credentials remain in private local admin storage. See [LOYVERSE_READ_ONLY.md](LOYVERSE_READ_ONLY.md) for scope, source provenance and the remaining incremental-sync/unit/coverage work. This does not change the architecture or the read-only boundary around related repositories.
+A separate owner-run GET-only Loyverse capture was verified and imported through the existing collection on 11 September. The offline CSV/API comparator validates a bounded source contract; it is not a runtime synchronization service or financial ledger.
+
+The application gained its own GET-only catalogue reader on 15 September: `server/loyverse.py` and the Items page. A person presses refresh, the server reads stores, categories, items and inventory levels once, and the normalized result is kept as a dated snapshot. There is no schedule, webhook, background worker or POS write, and the reader touches no receipt or sales endpoint. It stays off until `SH_LOYVERSE_ENABLED=1`; a credential alone does not enable it. Untracked, uncounted and unset values are reported as such and never as zero, and no Loyverse store is attributed to a workspace store without an explicit `SH_LOYVERSE_STORE_MAP` entry. Credentials remain in private local admin storage. See [LOYVERSE_READ_ONLY.md](LOYVERSE_READ_ONLY.md) for scope, source provenance and the remaining incremental-sync/unit/coverage work. This does not change the architecture or the read-only boundary around related repositories.
 
 ## Implemented entities
 
@@ -36,6 +39,7 @@ A separate owner-run GET-only Loyverse capture was verified and imported through
 - `upload_intents`: bound submission manifest, author, exact-payload hash, expiry and finalized entry; direct file uploads only become records after server hash/size verification.
 - `audit`: actor, action, subject, timestamp; application append-only history in the pilot (not a tamper-proof accounting audit system).
 - `ai_runs`: actor, source digest, selected model, call reservation, draft/failure state, source-linked output.
+- `loyverse_syncs`: actor, start/finish, state, request count and the normalized catalogue snapshot. The newest three snapshots keep their payload and the newest fifty rows keep their history; nothing else is retained. No credential is stored in this table.
 
 Runtime data is not tracked in Git. Source code, product decisions, prompts, architecture, and project continuity are versioned. No default production credentials and no public signup.
 
@@ -47,6 +51,7 @@ Runtime data is not tracked in Git. Source code, product decisions, prompts, arc
 | Read collection and download files | Assigned stores | Assigned stores | Own submissions in assigned stores |
 | Review / reopen review | Yes | Assigned stores | No |
 | Request/read AI intake draft | Assigned stores | Assigned stores | No |
+| Read and refresh the Loyverse item list | Yes | Assigned, mapped stores | No |
 | Export collection index | Yes | No | No |
 | Full audit | Yes | No | No |
 | Accounts, credentials, deployment | Server administration | No | No |
@@ -72,6 +77,8 @@ Keep ProcurePilot separate initially. Define a versioned read-only boundary for 
 ## Financial truth that comes later
 
 Revenue reports are reported observations until reconciled. Unknown costs, days, stock quantities, and tax rules stay unknown. Never show a missing value as zero or imply sales minus purchases equals profit.
+
+The Items page follows that rule literally: it separates a counted zero from untracked stock, from a missing inventory level, and from an unset optimal stock, and it derives no stock value, margin or profit. A Loyverse `cost` of 0.00 is the upstream default and is not evidence of a unit cost.
 
 A future ledger needs distinct store/location/product/variant identities; immutable POS receipts and refunds; inventory movements with units, batch/expiry, wastage, transfers, and in-house production yields; purchase receipts versus supplier payments/payables; overhead by period and documented allocation; cash/bank movements; opening balances; and accountant-confirmed tax treatment. Represent money in integer minor units or exact decimals, never floating-point arithmetic. Represent weight/quantity with explicit base units and pack conversions.
 

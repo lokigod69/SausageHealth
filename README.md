@@ -8,6 +8,7 @@ A private operating workspace for **The Sausage Guy** and **Natural Mind Health*
 - Server-backed notes and original file uploads: photos, PDF, spreadsheet, UTF-8 text exports, audio, and short video. Five files per update, 50 MB each, 100 MB total. Binary formats are stored for human review; they are not automatically parsed.
 - Owner, manager, and staff accounts. Staff see their own submissions for their assigned stores. Managers review sources in assigned stores. The owner exports the collection index and views audit events.
 - Review history, original-file hashes, request idempotency, optimistic review concurrency, and private downloads.
+- Optional **Items page**: a GET-only reader for the Loyverse catalogue. One person presses refresh, the server reads stores, categories, items and inventory levels once, and the dated snapshot lists every item, variant, SKU, price, recorded cost, stock, optimal stock and low-stock threshold, with shortfalls flagged. Untracked, uncounted and unset values are shown as such, never as zero. No schedule, no webhook, no POS write. Disabled until configured; the live account has not been read through it yet.
 - Optional **OpenRouter text intake assistant**: explicitly requested drafts, quoted sources checked against input, bounded calls, cached results, no tools or automatic ledger writes. Disabled until configured. No real model call has been made during setup.
 - SQLite backup with original attachments and a tested restoration into a new data directory.
 
@@ -59,7 +60,7 @@ CI also builds the Docker image and runs `python tests/container_smoke.py sausag
 
 ## Scope
 
-This is a functional **intake foundation**, not a verified financial dashboard or an autonomous retail operation. A manual read-only Loyverse import and CSV/API source comparison have passed; see [docs/LOYVERSE_READ_ONLY.md](docs/LOYVERSE_READ_ONLY.md). The website does not synchronize with Loyverse automatically, stock is not live, and profit remains unknown. Current work is collecting and understanding records; commercial experiments are deferred. OCR, audio transcription, recurring POS sync, cash/settlement reconciliation, customer messaging, checkout, ads and other specialist agents are subsequent milestones.
+This is a functional **intake foundation**, not a verified financial dashboard or an autonomous retail operation. A manual read-only Loyverse import and CSV/API source comparison have passed, and the Items page adds an explicitly requested GET-only catalogue read; see [docs/LOYVERSE_READ_ONLY.md](docs/LOYVERSE_READ_ONLY.md). The website still does not synchronize with Loyverse automatically, a stored snapshot is a dated copy rather than live stock, and profit remains unknown. Current work is collecting and understanding records; commercial experiments are deferred. OCR, audio transcription, recurring POS sync, cash/settlement reconciliation, customer messaging, checkout, ads and other specialist agents are subsequent milestones.
 
 The existing website in `D:/CODING/SAUSAGE` and procurement app in `D:/CODING/LOYVERSE` remain independent and unchanged. Sausage Health will integrate with them through explicit interfaces after live verification.
 

@@ -16,6 +16,7 @@ from starlette.datastructures import UploadFile
 
 from .db import audit, check_password, connect, data_dir, initialize, now, password_hash
 from . import intake_ai
+from . import loyverse
 from . import storage
 
 CATEGORIES = {'sales', 'stock', 'suppliers', 'expenses', 'team', 'walkthrough', 'other'}
@@ -317,10 +318,28 @@ def export(user=Depends(current_user)):
 
 @app.get('/api/system')
 def system(user=Depends(current_user)):
-    return {'phase': 'collect', 'ai': 'ready' if intake_ai.configured() else 'not_connected', 'loyverse': 'not_connected',
+    return {'phase': 'collect', 'ai': 'ready' if intake_ai.configured() else 'not_connected',
+            'loyverse': loyverse.state(),
             'storage': 'server', 'uploads': 'originals_preserved', 'max_file_mb': 50,
             'environment': os.environ.get('SH_ENV', 'development'),
             'upload_mode': 'direct' if storage.cloud_enabled() else 'multipart'}
+
+
+def catalogue_reader(user):
+    """Items mirror a whole POS account, so it follows the review roles, not own-submission access."""
+    if user['role'] not in ('owner', 'manager'):
+        raise HTTPException(403, 'The item list is available to the owner and store operators.')
+    return user
+
+
+@app.get('/api/loyverse/items')
+def loyverse_items(user=Depends(current_user)):
+    return loyverse.latest(catalogue_reader(user))
+
+
+@app.post('/api/loyverse/refresh')
+def loyverse_refresh(user=Depends(current_user)):
+    return loyverse.sync(catalogue_reader(user))
 
 
 class FileSpec(BaseModel):

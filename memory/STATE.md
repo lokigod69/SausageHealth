@@ -10,6 +10,14 @@ The owner requested a printable document to forward to Moritz and clarification 
 
 Live workspace: https://ops.thesausageguy.shop . Michael owner and Moritz manager accounts already exist. The owner deferred personal login/phone testing while requesting intake; do not badger for login, domain, provider/IP or Moritz's email again. Preserve Tropical Observatory and plain copy. `D:/CODING/SAUSAGE` and `D:/CODING/LOYVERSE` remain unchanged/read-only.
 
+## Items page · catalogue reader (15 September)
+
+The owner asked for an Items tab synced with the Loyverse API. `server/loyverse.py` and the Items page now read the catalogue **on request only**: someone with the owner or store-operator role presses refresh, the server makes one bounded set of GET requests to `/merchant/`, `/stores`, `/categories`, `/items` and `/inventory`, and the normalized result is stored as one dated snapshot. No schedule, webhook, background worker, receipt/sales endpoint or POS write exists. The page lists every item, variant, SKU, barcode, category, per-store price, recorded cost, stock, optimal stock and low-stock threshold, and flags what is below optimal or at the threshold.
+
+**The live account has not been read through this reader.** It stays off until `SH_LOYVERSE_ENABLED=1` is set on the API server; the credential in `.data/loyverse-access.json` alone does not switch it on. Switching it on, and setting `SH_LOYVERSE_STORE_MAP`, are owner actions. Until a store id is mapped, no Loyverse store is attributed to The Sausage Guy or Natural Mind Health, so the health-store question stays open rather than being answered by assuming the single returned store.
+
+Untracked stock, composite items without production, missing inventory levels and unset optimal/low targets are each labelled distinctly and never shown as zero; a genuine counted zero is preserved. Money and quantities stay exact decimals. No stock value, margin or profit is derived, and a Loyverse cost of 0.00 is the upstream default rather than a verified unit cost. A cooldown and daily cap bound the account rate limit, a failed refresh keeps the previous snapshot, and no provider body or credential is stored or returned. All verification so far is synthetic: `tests/test_loyverse_catalogue.py`.
+
 ## Verified API intake
 
 The owner supplied a Loyverse token and authorized intake. It is in ignored `.data/loyverse-access.json`; never display it, place it in URLs/Git or deploy it to a browser. Nine manual GET requests to official store/merchant/items/inventory/receipt endpoints succeeded; every page chain completed. Personal token permissions are broad; this GET-only use does not make it a provider-enforced read-only credential.

@@ -35,4 +35,35 @@ Do not combine the CSV total and overlapping API total. Current comparisons repo
 
 Current next inputs are health-store source/access, an independent Sales summary and closing reconciliation, cost-unit documents, dated stock counts/movements and running costs. Product and commercial changes remain deferred while the owners collect and interpret evidence.
 
+## Items page · in-app catalogue reader
+
+A second, separate reader was added to the application on 15 September 2026: `server/loyverse.py` and the **Items** page. It is still GET-only and still not a synchronization service.
+
+**What it does.** When someone with the owner or store-operator role presses refresh, the server makes one bounded set of GET requests — `/merchant/`, `/stores`, `/categories`, `/items`, `/inventory` — and stores the normalized result as one dated snapshot in `loyverse_syncs`. The page then reads that snapshot. It lists every item, variant, SKU, barcode, category, per-store price, recorded cost, stock, optimal stock and low-stock threshold, and flags what is below optimal or at the low-stock threshold.
+
+**What it is not.** There is no schedule, no webhook, no background worker and no POS write. A stored snapshot is a dated copy of the catalogue, not a live till and not an inventory ledger. Nothing on the page derives stock value, margin or profit, and no receipt or sales figure is read by this reader.
+
+**Authority.** The connection stays off until `SH_LOYVERSE_ENABLED=1` is set on the API server. The existence of a credential in `.data/loyverse-access.json` does not switch it on. The credential is read on the server, sent only as an `Authorization` header to `https://api.loyverse.com/v1.0`, never placed in a URL, never returned to the browser and never written to the database or an error message. Redirects are not followed.
+
+**Bounds.** `SH_LOYVERSE_COOLDOWN_SECONDS` (default 60) and `SH_LOYVERSE_DAILY_SYNCS` (default 24) keep the account's published limit of 300 requests per 300 seconds well out of reach. One refresh at a time; an interrupted run is released after five minutes. Pagination is cursor-based and bounded at 40 pages per collection: a longer chain raises instead of publishing a snapshot with a hidden gap. A failed refresh leaves the previous snapshot in place and reports a generic message, because provider bodies can carry account data or the credential.
+
+**Unknown is not zero.** The normalizer refuses to turn an absence into a number:
+
+| Source condition | Reported as | Why |
+| --- | --- | --- |
+| `track_stock` false | *Not tracked* | Loyverse sets those inventory levels to 0; that zero is not a count. |
+| Composite item without production | *Components only* | Loyverse holds the components' stock, not the item's. |
+| No inventory level for a variant and store | *Unknown* | A missing level is missing, not empty. |
+| `optimal_stock` / `low_stock` absent | *Not set* | Upstream default is null: no target has been chosen. |
+| No store settings returned for a variant | *No store settings* | The row is marked absent rather than filled with item defaults. |
+| A genuine `in_stock` of 0 | `0` | A real counted zero is preserved exactly. |
+
+Quantities and money are parsed with `json.loads(..., parse_float=Decimal)` and carried as exact decimal strings; floats and non-finite numbers are refused. A shortfall against optimal stock is calculated only when both numbers are known. Note that Loyverse starts a variant `cost` at 0.00, so a zero cost may mean it was never entered — it is displayed, never treated as a verified unit cost.
+
+**Store identity.** `SH_LOYVERSE_STORE_MAP` maps Loyverse store ids to `sausage` or `health`. Nothing is auto-assigned: an unmapped Loyverse store is shown to the owner as unattributed and is hidden from store operators, and a mapping entry naming a store this account does not return is reported as having no effect. This preserves the open question about Natural Mind Health's account rather than answering it by assumption.
+
+**Access.** The item list mirrors a whole POS account rather than an individual submission, so it follows the review roles: the owner and store operators can open and refresh it; store team accounts are refused by the API, not only hidden in the interface. Store operators see only stores mapped to their assigned shops.
+
+**Verification.** `tests/test_loyverse_catalogue.py` covers the normalization rules above, identity and duplicate refusal, role and store scoping, the cooldown and daily cap, snapshot retention, and that the credential never reaches a response. All cases are synthetic; no live business data or credential is in the repository. The live account has not been read through this new reader — that remains an owner action once the connection is switched on.
+
 Official references checked 11 September 2026: [API reference](https://developer.loyverse.com/docs/), [OpenAPI document](https://developer.loyverse.com/docs/API-Reference__v1.0.yaml).

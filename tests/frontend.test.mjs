@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { starterTasks } from "../src/readiness.ts";
-import { api, ApiError, submitEntry } from "../src/api.ts";
+import { api, ApiError, money, quantity, submitEntry } from "../src/api.ts";
 
 const owner = { id: "owner", role: "owner", stores: ["sausage", "health"] };
 const source = (patch = {}) => ({
@@ -142,4 +142,24 @@ test("a private upload is not reported saved when final checksum verification fa
     return Response.json({ detail: 'The original file could not be verified.' }, { status: 503 });
   });
   await assert.rejects(submitEntry(form), error => error instanceof ApiError && error.status === 503);
+});
+
+test("a missing quantity stays missing and an exact zero stays zero", () => {
+  assert.equal(quantity(null), null);
+  assert.equal(quantity("0"), "0");
+  assert.equal(quantity("0.000"), "0");
+  assert.equal(quantity("7.250"), "7.25");
+  assert.equal(quantity("12"), "12");
+  assert.equal(quantity("9999999.999"), "9999999.999");
+});
+
+test("money display pads to the account decimals but never shortens a value", () => {
+  const php = { code: "PHP", decimal_places: 2 };
+  assert.equal(money(null, php), null);
+  assert.equal(money("250", php), "PHP 250.00");
+  assert.equal(money("249.9", php), "PHP 249.90");
+  // A longer fraction is preserved rather than rounded away.
+  assert.equal(money("249.995", php), "PHP 249.995");
+  assert.equal(money("250", { code: null, decimal_places: null }), "250");
+  assert.equal(money("250", null), "250");
 });
