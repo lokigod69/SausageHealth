@@ -11,17 +11,21 @@ Live: https://ops.thesausageguy.shop . Individual owner and Moritz accounts exis
 | Original files | Private Vercel Blob `sausage-health-originals`, `sin1`; resource `store_J4a1IsdYxssy35mI`; production prefix `pilot` |
 | Source | Private GitHub `lokigod69/SausageHealth`; no records, files or credentials |
 | Recovery copy | Encrypted database-and-files archive on the owner's local machine, outside Git and outside Vercel/Neon |
-| AI / Loyverse | Not connected; no background specialist agents or live stock |
+| AI / Loyverse | Not connected. The Items page is deployed but reports "Loyverse is not connected yet" until `SH_LOYVERSE_ENABLED=1` and a credential are set in this environment; no background specialist agents and no live stock |
 
 No paid plan was upgraded. Neon uses Free. Blob uses the team's existing Pro plan and is usage-billed. The application reserves at most **1 GiB** of uploads and allows 30 submissions per user per day; this is not a dollar spending cap. No new paid plan or monetary budget was approved. Inspect usage before raising limits or expanding the pilot.
 
 ## Deployment and DNS
 
-Runtime source `e89483d`; deployment `dpl_8kFt6q4TwTfp7N3wdyHEuUM4XgUu`, https://sausage-health-cdi23ahn9-lokigod69s-projects.vercel.app . [CI run 34315659874](https://github.com/lokigod69/SausageHealth/actions/runs/34315659874) passed the frontend build, 46 backend tests (2 backend-specific skips), 9 Node tests, Docker build and container smoke. Later documentation-only commits do not change that runtime.
+Runtime source `1bd0baf`; deployment `dpl_4JySoUECT4voLkDwdtiFmB3kBrWs`, https://sausage-health-ni65rvoll-lokigod69s-projects.vercel.app . [CI run 34999063654](https://github.com/lokigod69/SausageHealth/actions/runs/34999063654) passed the frontend build, **95 backend tests including the Postgres variants** (2 backend-specific skips), 11 Node tests, Docker build and container smoke. That run is the evidence for the new `loyverse_syncs` table on Postgres; the local machine has no Postgres and skips those cases.
+
+Deployed on 16 September with the Items page. Verified signed out on the live host: the page returns 200, `/api/health` is ok, `/api/loyverse/items` returns 401 rather than 404 so the route exists and is authenticated, an unknown `/api/loyverse/*` path still returns 404, and the published bundle contains the Items code. The application started against Neon, which is what confirms the new table was created there.
+
+Previous runtime `e89483d`, deployment `dpl_8kFt6q4TwTfp7N3wdyHEuUM4XgUu`, [CI run 34315659874](https://github.com/lokigod69/SausageHealth/actions/runs/34315659874). Later documentation-only commits do not change a runtime.
 
 Porkbun has one new CNAME: `ops` to `9ef3c8616efcf012.vercel-dns-016.com.` (TTL 600). The three existing root/wildcard/www records were preserved. The existing public `/panglao` page still returned HTTPS 200. Vercel deployment protection remains enabled for deployment URLs; the custom domain uses the application's login. Do not disable that protection globally or merge the public site's authentication.
 
-The production environment includes `SH_ENV=production`, exact `SH_ORIGIN=https://ops.thesausageguy.shop`, `SH_DATABASE_BACKEND=postgres`, `DATABASE_URL`, `SH_STORAGE=blob`, `BLOB_READ_WRITE_TOKEN`, `SH_STORAGE_SIGNING_KEY`, `SH_AI_ENABLED=0` and the upload reservation limit. Secrets are only in Vercel and ignored `.env.cloud` / `.data/`. Private resources are not linked to previews. Local/CI tests use isolated databases or schemas.
+The production environment includes `SH_ENV=production`, exact `SH_ORIGIN=https://ops.thesausageguy.shop`, `SH_DATABASE_BACKEND=postgres`, `DATABASE_URL`, `SH_STORAGE=blob`, `BLOB_READ_WRITE_TOKEN`, `SH_STORAGE_SIGNING_KEY`, `SH_AI_ENABLED=0` and the upload reservation limit. No `SH_LOYVERSE_*` variable is set: deploying the Items page does not connect the POS, and placing that broad personal token in this runtime is a separate owner decision. Secrets are only in Vercel and ignored `.env.cloud` / `.data/`. Private resources are not linked to previews. Local/CI tests use isolated databases or schemas.
 
 ```powershell
 vercel deploy --prod --yes --scope lokigod69s-projects
