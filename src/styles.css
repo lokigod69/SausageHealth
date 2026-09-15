@@ -4296,3 +4296,22 @@ legend {
     justify-content: flex-end;
   }
 }
+
+.store-id-list {
+  margin: 8px 0;
+  padding-left: 18px;
+  line-height: 1.9;
+}
+.store-id-list code {
+  font-size: 11px;
+  user-select: all;
+}
+.map-sample {
+  display: block;
+  margin-top: 6px;
+  padding: 9px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: break-all;
+  user-select: all;
+}

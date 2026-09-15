@@ -50,6 +50,14 @@ const sorters = {
 } as const;
 type Sorter = keyof typeof sorters;
 
+/** A ready-to-edit mapping for the stores this account returned but nobody has claimed. */
+function unmappedSample(catalogue: LoyverseCatalogue) {
+  const unmapped = catalogue.stores.filter((row) => !row.workspace_store);
+  return JSON.stringify(
+    Object.fromEntries(unmapped.map((row) => [row.id, "sausage"])),
+  );
+}
+
 /** Sorting only. Displayed figures always come from the exact source string. */
 function sortable(value: string | null) {
   const parsed = value === null ? Number.NaN : Number(value);
@@ -397,18 +405,36 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
       {catalogue &&
         catalogue.counts.mapped_stores < catalogue.counts.stores &&
         user.role === "owner" && (
-          <p className="items-warning small-text">
+          <div className="items-warning small-text">
             <CircleAlert size={14} />
-            {catalogue.counts.stores - catalogue.counts.mapped_stores} Loyverse
-            store
-            {catalogue.counts.stores - catalogue.counts.mapped_stores === 1
-              ? " is"
-              : "s are"}{" "}
-            not mapped to {storeNames.sausage} or {storeNames.health}. Their
-            rows are shown to you unattributed. Set{" "}
-            <code>SH_LOYVERSE_STORE_MAP</code> once the store identity is
-            confirmed.
-          </p>
+            <div>
+              <p>
+                {catalogue.counts.stores - catalogue.counts.mapped_stores}{" "}
+                Loyverse store
+                {catalogue.counts.stores - catalogue.counts.mapped_stores === 1
+                  ? " is"
+                  : "s are"}{" "}
+                not mapped to {storeNames.sausage} or {storeNames.health}. Their
+                rows are shown to you unattributed. Confirm which shop each one
+                is, then set <code>SH_LOYVERSE_STORE_MAP</code> on the API
+                server and restart it.
+              </p>
+              <ul className="store-id-list">
+                {catalogue.stores
+                  .filter((row) => !row.workspace_store)
+                  .map((row) => (
+                    <li key={row.id}>
+                      {row.name ?? "Unnamed store"} <code>{row.id}</code>
+                    </li>
+                  ))}
+              </ul>
+              <p className="muted">
+                Replace each value with <code>"sausage"</code> or{" "}
+                <code>"health"</code>, and drop any store that is neither:
+              </p>
+              <code className="map-sample">{unmappedSample(catalogue)}</code>
+            </div>
+          </div>
         )}
       {catalogue?.unmatched_store_mapping?.length ? (
         <p className="items-warning small-text">

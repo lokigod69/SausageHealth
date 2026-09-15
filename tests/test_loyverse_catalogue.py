@@ -311,3 +311,24 @@ def test_scientific_notation_from_the_source_is_written_in_plain_digits():
     priced = only(build([item(variants=[variant(stores_list=[override(price=Decimal('2.5E+2'))])])],
                         [level(Decimal('1'))]))
     assert priced['price'] == '250'
+
+
+def test_this_readers_own_validation_message_is_shown_but_provider_detail_is_not(env, monkeypatch):
+    connect_loyverse(monkeypatch)
+
+    def refuse():
+        raise ValueError('Duplicate Loyverse variant id.')
+    monkeypatch.setattr(loyverse, 'capture', refuse)
+    c = client()
+    failure = c.post('/api/loyverse/refresh')
+    assert failure.status_code == 502
+    assert 'Duplicate Loyverse variant id.' in failure.json()['detail']
+    assert c.get('/api/loyverse/items').json()['last_attempt']['error'] == 'Duplicate Loyverse variant id.'
+
+    def leak():
+        raise RuntimeError('token test-token-never-a-real-credential and customer Jane Doe')
+    monkeypatch.setattr(loyverse, 'capture', leak)
+    hidden = c.post('/api/loyverse/refresh')
+    assert hidden.status_code == 502
+    assert 'Jane Doe' not in hidden.text and 'test-token-never-a-real-credential' not in hidden.text
+    assert 'Jane Doe' not in c.get('/api/loyverse/items').text

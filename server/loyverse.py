@@ -414,8 +414,14 @@ def sync(actor):
     except HTTPException as refusal:
         fail(actor, run_id, refusal.detail if isinstance(refusal.detail, str) else 'Loyverse refused the request.')
         raise
+    except ValueError as problem:
+        # Only this module's own checks raise ValueError, and none of those messages
+        # interpolate provider content, so reporting one cannot leak account data.
+        detail = f'This reader refused the Loyverse response: {problem} Nothing was changed, and the last saved list is still shown.'
+        fail(actor, run_id, str(problem))
+        raise HTTPException(502, detail)
     except Exception:
-        # Provider bodies can carry account data or the credential; never persist them.
+        # Other provider bodies can carry account data or the credential; never persist them.
         fail(actor, run_id, 'Loyverse was unreachable or returned something this reader will not accept.')
         raise HTTPException(502, 'The Loyverse list could not be read or verified. Nothing was changed, and the last saved list is still shown.')
     with connect() as db:
