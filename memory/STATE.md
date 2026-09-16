@@ -10,6 +10,16 @@ The owner requested a printable document to forward to Moritz and clarification 
 
 Live workspace: https://ops.thesausageguy.shop . Michael owner and Moritz manager accounts already exist. The owner deferred personal login/phone testing while requesting intake; do not badger for login, domain, provider/IP or Moritz's email again. Preserve Tropical Observatory and plain copy. `D:/CODING/SAUSAGE` and `D:/CODING/LOYVERSE` remain unchanged/read-only.
 
+## Trading context that changes how sales read (16 September)
+
+**The two weeks to roughly 16 September are not normal trading.** The owner reports the shop was being renovated and customers assumed it was closed; it is now open as usual again. Any decline over that period is a visibility effect, not demand. Do not read the recent weekly drop as a trend, do not set reorder targets from it, and mark or exclude that period before comparing anything.
+
+Observed in the weekly figures and consistent with this: Brazilian Ribeye ran 68, 55, 29, 25 units across the four weeks to 16 September. English Bangers ran 25, 28, 2, 5, which looks more like a supply interruption than demand and still needs its own explanation from Moritz.
+
+**Receipt history is about three months, not six.** The account holds exactly 1,587 receipts covering business dates 2026-06-21 to 2026-09-16, which is 88 trading days and 4,613 line rows. Nothing earlier exists to fetch, so any longer comparison is impossible for now rather than merely unfetched. Verified with no lower bound on the query.
+
+Observed over that history, at the candidate UTC+8 offset that earlier reconciliation matched: trading runs 08:00 to 20:00, thin before 09:00 and after 19:00, with the busiest hours 14:00 to 17:00 peaking at 16:00 and a secondary bump at 10:00. Weekdays are almost flat, from 199 receipts on Fridays to 243 on Wednesdays. No receipt in the whole history carries tax, tip or surcharge, so the money mapping already validated in `scripts/reconcile_loyverse_api.py` covers this data. Reported net collected over the period is PHP 1,828,502.70, which is a reported observation and not reconciled against cash, bank or settlement.
+
 ## Items page · catalogue reader (15 September)
 
 The owner asked for an Items tab synced with the Loyverse API. `server/loyverse.py` and the Items page now read the catalogue **on request only**: someone with the owner or store-operator role presses refresh, the server makes one bounded set of GET requests to `/merchant/`, `/stores`, `/categories`, `/items` and `/inventory`, and the normalized result is stored as one dated snapshot. No schedule, webhook, background worker, receipt/sales endpoint or POS write exists. The page lists every item, variant, SKU, barcode, category, per-store price, recorded cost, stock, optimal stock and low-stock threshold, and flags what is below optimal or at the threshold.
