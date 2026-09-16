@@ -4545,3 +4545,47 @@ legend {
     height: 17px;
   }
 }
+
+.order-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.order-group {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 15px;
+  background: var(--input);
+}
+.order-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.order-head strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.order-head small {
+  font-size: 10px;
+  color: var(--accent);
+}
+.order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+.order-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.order-list small {
+  color: var(--faint);
+  white-space: nowrap;
+  font-size: 10px;
+}

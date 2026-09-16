@@ -4,6 +4,7 @@ import {
   CircleHelp,
   Clock,
   LockKeyhole,
+  PackageCheck,
   RefreshCw,
   TrendingUp,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   type Performance as Trading,
   type Store,
   type User,
+  type Reorder,
   type VariantHistory,
 } from "./api";
 
@@ -32,6 +34,7 @@ type Line = {
   perWeek: string | null;
   lowStock: string | null;
   trackStock: boolean;
+  reorder: Reorder | null;
 };
 
 /** Days of stock left at the recent rate. Only when both numbers are known. */
@@ -275,6 +278,7 @@ export function PerformancePage({ user, scope }: { user: User; scope: Store }) {
           perWeek: storeRow.sold_per_week,
           lowStock: storeRow.low_stock,
           trackStock: item.track_stock,
+          reorder: storeRow.reorder,
         });
       }
     return out;
@@ -488,6 +492,99 @@ export function PerformancePage({ user, scope }: { user: User; scope: Store }) {
           </div>
         ))}
       </div>
+
+      {catalogue.suppliers &&
+        (() => {
+          const due = lines.filter(
+            (line) =>
+              line.reorder?.status === "order_now" ||
+              line.reorder?.status === "out_of_stock",
+          );
+          const bySupplier = new Map<string, Line[]>();
+          for (const line of due) {
+            const key = line.reorder!.supplier_name;
+            bySupplier.set(key, [...(bySupplier.get(key) ?? []), line]);
+          }
+          const groups = [...bySupplier.entries()].sort(
+            (a, b) => b[1].length - a[1].length,
+          );
+          return (
+            <section className="panel-block">
+              <div className="section-heading">
+                <h2>
+                  <PackageCheck size={17} /> Needs ordering
+                </h2>
+                <span className="eyebrow">
+                  {due.length} OF {lines.length} LINES
+                </span>
+              </div>
+              {groups.length === 0 ? (
+                <p className="small-text unknown-value">
+                  Nothing is due at the recent sales rate. A product whose stock
+                  or rate is unknown gives no advice either way.
+                </p>
+              ) : (
+                <div className="order-groups">
+                  {groups.map(([supplier, rows]) => {
+                    const first = rows[0].reorder!;
+                    return (
+                      <div className="order-group" key={supplier}>
+                        <div className="order-head">
+                          <strong>{supplier}</strong>
+                          <small>
+                            {first.cycle
+                              ? `order ${first.next_order_day} \u00b7 arrives ${first.arrives}`
+                              : `${first.lead_days?.min}\u2013${first.lead_days?.max} days${
+                                  first.buffer_days
+                                    ? ` + ${first.buffer_days} buffer`
+                                    : ""
+                                }`}
+                          </small>
+                        </div>
+                        <ul className="order-list">
+                          {rows.slice(0, 12).map((line) => (
+                            <li key={line.variantId}>
+                              <span>{line.name}</span>
+                              <small
+                                className={
+                                  line.reorder!.status === "out_of_stock"
+                                    ? "short-by"
+                                    : ""
+                                }
+                              >
+                                {line.reorder!.status === "out_of_stock"
+                                  ? "out of stock"
+                                  : `${line.reorder!.days_of_cover} days left`}
+                              </small>
+                            </li>
+                          ))}
+                          {rows.length > 12 && (
+                            <li className="unknown-value">
+                              <span>and {rows.length - 12} more</span>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {catalogue.suppliers.unassigned_count > 0 &&
+                user.role === "owner" && (
+                  <p className="small-text muted">
+                    {catalogue.suppliers.unassigned_count} item
+                    {catalogue.suppliers.unassigned_count === 1 ? "" : "s"}{" "}
+                    match no supplier rule and deliberately get no advice:{" "}
+                    {catalogue.suppliers.unassigned
+                      .slice(0, 6)
+                      .map((row) => row.item)
+                      .join(", ")}
+                    .
+                  </p>
+                )}
+            </section>
+          );
+        })()}
 
       <section className="panel-block">
         <div className="section-heading">

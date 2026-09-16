@@ -180,11 +180,14 @@ def test_counts_separate_known_from_unknown():
                                    'variant_store_rows': 3, 'tracked': 1, 'not_tracked': 1,
                                    'components_only': 0, 'unknown_stock': 1, 'below_optimal': 1,
                                    'low_stock_alerts': 0, 'optimal_stock_set': 1, 'unavailable': 1,
-                                   'with_sales': 0, 'no_sales': 0}
+                                   'with_sales': 0, 'no_sales': 0,
+                                   'order_now': 0, 'out_of_stock': 0}
     # A snapshot taken without a sales window reports absence, never a zero week.
     assert catalogue['sales'] is None
     row = catalogue['items'][0]['variants'][0]['stores'][0]
     assert row['sold_units'] is None and row['sold_per_week'] is None and row['weekly_units'] is None
+    # With no supplier registry configured there is no reordering advice at all.
+    assert row['reorder'] is None and catalogue['suppliers'] is None
 
 
 def snapshot(store_ids=(STORE,), mapping=None):

@@ -29,6 +29,7 @@ from fastapi import HTTPException
 
 from .db import audit, connect, data_dir, now, password_hash
 from . import performance
+from . import suppliers as supplier_rules
 
 BASE = 'https://api.loyverse.com/v1.0'
 PAGE_SIZE = 250
@@ -404,8 +405,19 @@ def build(stores, categories, items, inventory, mapping, money, sold=None, sales
             'variants': variants,
         })
     built.sort(key=lambda row: ((row['name'] or '').lower(), row['id']))
+    # Reordering advice needs the stock and weekly rate already on each row, so it
+    # runs as a second pass. Without a supplier registry there is simply no advice.
+    _, offset = performance.local_zone()
+    reorder = supplier_rules.assign(built, supplier_rules.today_local(offset))
+    for item_row in built:
+        for variant_row in item_row['variants']:
+            for store_row in variant_row['stores']:
+                store_row['reorder'] = (reorder['assignments'].get(
+                    (variant_row['variant_id'], store_row['store_id'])) if reorder else None)
     return {'schema_version': SCHEMA_VERSION, 'captured_at': now(), 'currency': money,
             'sales': sales, 'performance': trading, 'stores': store_rows,
+            'suppliers': {'known': reorder['suppliers'], 'unassigned': reorder['unassigned'],
+                          'unassigned_count': reorder['unassigned_count']} if reorder else None,
             'unmatched_store_mapping': unmatched_mapping,
             'categories': sorted(({'id': key, 'name': value} for key, value in category_names.items()),
                                  key=lambda row: (row['name'] or '').lower()),
@@ -426,6 +438,8 @@ def counts(items, store_rows):
             'low_stock_alerts': sum(1 for row in rows if row['low_stock_alert']),
             'optimal_stock_set': sum(1 for row in rows if row['optimal_stock'] is not None),
             'unavailable': sum(1 for row in rows if row['available_for_sale'] is False),
+            'order_now': sum(1 for row in rows if (row.get('reorder') or {}).get('status') == 'order_now'),
+            'out_of_stock': sum(1 for row in rows if (row.get('reorder') or {}).get('status') == 'out_of_stock'),
             'with_sales': sum(1 for row in rows if row['sold_units'] is not None
                               and Decimal(row['sold_units']) > 0),
             'no_sales': sum(1 for row in rows if row['sold_units'] is not None

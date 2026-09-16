@@ -256,9 +256,25 @@ export type LoyverseStoreRow = {
   stock_updated_at: string | null;
   below_optimal: string | null;
   low_stock_alert: boolean;
+  reorder: Reorder | null;
   sold_units: string | null;
   sold_per_week: string | null;
   weekly_units: string[] | null;
+};
+export type Reorder = {
+  supplier_id: string;
+  supplier_name: string;
+  supplier_note: string | null;
+  buffer_days: number;
+  cycle: boolean;
+  lead_days: { min: number; max: number } | null;
+  next_order_day: string | null;
+  arrives: string | null;
+  order_by: string | null;
+  status: "order_now" | "out_of_stock" | "ok" | "unknown";
+  days_of_cover: number | null;
+  alternative_name?: string;
+  alternative_lead_days?: { min: number; max: number };
 };
 export type LoyverseVariant = {
   variant_id: string;
@@ -300,6 +316,8 @@ export type LoyverseCounts = {
   unavailable: number;
   with_sales: number;
   no_sales: number;
+  order_now: number;
+  out_of_stock: number;
 };
 export type LoyverseSales = {
   window_days: number;
@@ -319,6 +337,11 @@ export type LoyverseCatalogue = {
   currency: LoyverseCurrency | null;
   sales: LoyverseSales | null;
   performance: Record<string, Performance> | null;
+  suppliers: {
+    known: { id: string; name: string; note: string | null }[];
+    unassigned: { item: string | null; category: string | null }[];
+    unassigned_count: number;
+  } | null;
   stores: {
     id: string;
     name: string | null;
