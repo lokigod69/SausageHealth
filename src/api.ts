@@ -318,6 +318,7 @@ export type LoyverseCatalogue = {
   captured_at: string;
   currency: LoyverseCurrency | null;
   sales: LoyverseSales | null;
+  performance: Record<string, Performance> | null;
   stores: {
     id: string;
     name: string | null;
@@ -342,6 +343,18 @@ export type LoyverseView = {
   captured_at: string | null;
 };
 
+/** Thousands separators for readability. The value itself is never rounded. */
+export function grouped(value: string | null) {
+  if (value === null) return null;
+  const [whole, fraction] = value.split(".");
+  const sign = whole.startsWith("-") ? "-" : "";
+  const body = (sign ? whole.slice(1) : whole).replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ",",
+  );
+  return sign + body + (fraction ? "." + fraction : "");
+}
+
 /** Trim trailing zeros for display only. The exact source value is never rounded. */
 export function quantity(value: string | null) {
   if (value === null) return null;
@@ -359,6 +372,8 @@ export function money(value: string | null, currency: LoyverseCurrency | null) {
     const [whole, fraction = ""] = value.split(".");
     shown = `${whole}.${fraction.length >= places ? fraction : fraction.padEnd(places, "0")}`;
   }
+  // Separators are readability only; no digit is added, removed or rounded.
+  shown = grouped(shown) ?? shown;
   return currency?.code ? `${currency.code} ${shown}` : shown;
 }
 
@@ -377,4 +392,59 @@ export function timeLabel(value: string) {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(value));
+}
+
+export type DailyRow = {
+  date: string;
+  receipts: number;
+  units: string;
+  collected: string;
+  excluded: boolean;
+};
+export type HourlyRow = {
+  weekday: number;
+  weekday_name: string;
+  hour: number;
+  receipts: number;
+  units: string;
+  collected: string;
+};
+export type VariantHistory = {
+  units: string;
+  collected: string;
+  receipts: number;
+  first_sold: string | null;
+  last_sold: string | null;
+};
+export type Performance = {
+  from: string | null;
+  to: string | null;
+  calendar_days: number;
+  trading_days: number;
+  receipts: number;
+  refund_receipts: number;
+  units: string;
+  collected: string;
+  lines: number;
+  basket: {
+    average_collected: string;
+    average_lines: string;
+    average_units: string;
+  };
+  concentration: { top_ten_collected: string; top_ten_share: string | null };
+  daily: DailyRow[];
+  hourly: HourlyRow[];
+  variants: Record<string, VariantHistory>;
+  excluded_periods: { from: string; to: string; reason: string }[];
+  local_utc_offset_hours: number;
+  money_flags: Record<string, number>;
+  skipped: Record<string, number>;
+};
+
+export function dayLabel(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Manila",
+    day: "numeric",
+    month: "short",
+  }).format(new Date(value + "T12:00:00+08:00"));
 }

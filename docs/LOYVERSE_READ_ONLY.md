@@ -70,4 +70,22 @@ Quantities and money are parsed with `json.loads(..., parse_float=Decimal)` and 
 
 **Verification.** `tests/test_loyverse_catalogue.py` covers the normalization rules above, identity and duplicate refusal, role and store scoping, the cooldown and daily cap, snapshot retention, and that the credential never reaches a response. All cases are synthetic; no live business data or credential is in the repository. The live account has not been read through this new reader — that remains an owner action once the connection is switched on.
 
+## Performance page
+
+A second page derived from the same receipt read, added 16 September. `server/performance.py` turns the receipts into one block of trading figures per store: takings and units per calendar day, a weekday-by-hour heatmap, per-variant totals with first and last sale, basket averages and the share of takings held by the top ten products.
+
+Everything on it is a reported observation of what the POS recorded. It is not reconciled against cash, bank or settlement, and nothing derives cost, margin or profit. The only money field used is the amount each receipt states was collected, with refunds subtracted exactly once.
+
+Rules the aggregation keeps:
+
+- Cancelled receipts, unknown receipt types, receipts for an unmapped store and receipts without a business date are each counted separately in `skipped` and never folded into a total.
+- A calendar day with no receipts is reported as having none. That is deliberately not a claim that the shop was closed.
+- Local hours use `SH_LOYVERSE_UTC_OFFSET_HOURS`, default 8. Earlier receipt reconciliation matched UTC+8, but the store's configured timezone is still unconfirmed upstream, so the figure is labelled as an assumption on the page.
+- Receipts carrying tax, tip or surcharge are counted in `money_flags` and surfaced as a warning, because the money mapping this project validated covers receipts without them. The live account currently has none.
+- `SH_LOYVERSE_EXCLUDED_PERIODS` marks spans that are not representative. Marked days are flagged in the data and drawn differently, never dropped silently. The owner is prompted to set one when none exists.
+
+The page separates two things that look alike but are not: a product with stock left and a short cover, and a product that is **already** out of stock while still selling. The second is a sale that cannot happen today, not a warning about next week.
+
+Depth is whatever the account holds. On 16 September that was 1,587 receipts across 87 trading days from 2026-06-21, with no earlier receipts to fetch.
+
 Official references checked 11 September 2026: [API reference](https://developer.loyverse.com/docs/), [OpenAPI document](https://developer.loyverse.com/docs/API-Reference__v1.0.yaml).

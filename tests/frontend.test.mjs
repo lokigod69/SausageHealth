@@ -163,3 +163,14 @@ test("money display pads to the account decimals but never shortens a value", ()
   assert.equal(money("250", { code: null, decimal_places: null }), "250");
   assert.equal(money("250", null), "250");
 });
+
+test("money keeps every digit while adding separators", () => {
+  const php = { code: "PHP", decimal_places: 2 };
+  assert.equal(money("1814258.70", php), "PHP 1,814,258.70");
+  assert.equal(money("999", php), "PHP 999.00");
+  assert.equal(money("1000", php), "PHP 1,000.00");
+  assert.equal(money("-1234.5", php), "PHP -1,234.50");
+  // A longer fraction is still never rounded away.
+  assert.equal(money("1234.567", php), "PHP 1,234.567");
+});
+

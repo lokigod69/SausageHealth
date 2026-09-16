@@ -10,6 +10,14 @@ The owner requested a printable document to forward to Moritz and clarification 
 
 Live workspace: https://ops.thesausageguy.shop . Michael owner and Moritz manager accounts already exist. The owner deferred personal login/phone testing while requesting intake; do not badger for login, domain, provider/IP or Moritz's email again. Preserve Tropical Observatory and plain copy. `D:/CODING/SAUSAGE` and `D:/CODING/LOYVERSE` remain unchanged/read-only.
 
+## Performance page (16 September)
+
+A Performance page derives trading figures from the same receipt read: takings and units per day, a weekday-by-hour heatmap, bestsellers by takings and by units, weakest sellers with their last sale, stock that never sold, products already out of stock while still selling, products under two weeks of cover, and regular sellers with no low-stock threshold.
+
+Observed on the live account: **PHP 1,814,258.70** taken across **1,575 receipts** and **5,205 units** over 87 trading days, average basket **PHP 1,151.91** at 3.30 units per receipt, 23 refunds, and the **top ten products holding 43.3% of all takings**. No receipt carries tax, tip or surcharge and none was skipped, so the validated money mapping applies cleanly. 337 of 450 variants have ever sold.
+
+Everything there is reported, not reconciled, and no cost, margin or profit is derived anywhere on the page.
+
 ## Trading context that changes how sales read (16 September)
 
 **The two weeks to roughly 16 September are not normal trading.** The owner reports the shop was being renovated and customers assumed it was closed; it is now open as usual again. Any decline over that period is a visibility effect, not demand. Do not read the recent weekly drop as a trend, do not set reorder targets from it, and mark or exclude that period before comparing anything.

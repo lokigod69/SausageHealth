@@ -37,6 +37,7 @@ import {
   Sparkles,
   Sprout,
   Store as StoreIcon,
+  TrendingUp,
   Sun,
   Upload,
   Users,
@@ -60,12 +61,14 @@ import {
 } from "./api";
 
 import { Items } from "./Items";
+import { PerformancePage } from "./Performance";
 import { Journey, NextStep } from "./Journey";
 
 type Page =
   | "overview"
   | "collection"
   | "items"
+  | "performance"
   | "stores"
   | "roadmap"
   | "team"
@@ -74,6 +77,12 @@ const navItems = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "collection", label: "Collection", icon: BookOpen },
   { id: "items", label: "Items", icon: Package, roles: ["owner", "manager"] },
+  {
+    id: "performance",
+    label: "Performance",
+    icon: TrendingUp,
+    roles: ["owner", "manager"],
+  },
   { id: "stores", label: "Stores", icon: StoreIcon },
   { id: "roadmap", label: "Roadmap", icon: Map },
   { id: "team", label: "AI tools", icon: Sparkles },
@@ -1042,6 +1051,7 @@ export default function App() {
       : {
           collection: "Collection",
           items: "Items",
+          performance: "Performance",
           stores: "Stores",
           roadmap: "Roadmap",
           team: "AI tools",
@@ -1540,6 +1550,17 @@ export default function App() {
                 till: nothing here changes the POS.
               </p>
               <Items user={user} scope={scope} />
+            </>
+          )}
+
+          {page === "performance" && user.role !== "staff" && (
+            <>
+              <p className="page-intro">
+                What the till actually recorded: takings per day, when people
+                come in, and which products carry the shop. Reported figures,
+                not reconciled against cash or bank, and no profit is derived.
+              </p>
+              <PerformancePage user={user} scope={scope} />
             </>
           )}
 

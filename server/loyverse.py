@@ -28,6 +28,7 @@ import httpx
 from fastapi import HTTPException
 
 from .db import audit, connect, data_dir, now, password_hash
+from . import performance
 
 BASE = 'https://api.loyverse.com/v1.0'
 PAGE_SIZE = 250
@@ -140,6 +141,11 @@ def get_pages(client, path, key, params=None):
             raise ValueError('This catalogue is larger than the bounded reader supports: ' + key)
 
 
+def history_days():
+    """How far back the dashboard reads. The account may simply hold less."""
+    return bounded('SH_LOYVERSE_HISTORY_DAYS', '400', 1100)
+
+
 def sales_days():
     """Whole weeks only, so a weekly average never divides by a ragged window."""
     requested = bounded('SH_LOYVERSE_SALES_DAYS', '28', 371)
@@ -239,19 +245,21 @@ def capture():
         requests_made += pages
         inventory, pages = get_pages(client, '/inventory', 'inventory_levels')
         requests_made += pages
-        # Fetch from before the window: receipts are filtered on created_at but
-        # counted by receipt_date, and late uploads have been observed here.
+        # One fetch serves both: the weekly column slices the window out of it,
+        # and the dashboard uses the whole history. Receipts are filtered on
+        # created_at but counted by receipt_date, and late uploads happen here.
         receipts, pages = get_pages(client, '/receipts', 'receipts', {
-            'created_at_min': stamp(start - timedelta(days=LATE_UPLOAD_GRACE_DAYS)),
+            'created_at_min': stamp(end - timedelta(days=history_days())),
             'created_at_max': stamp(end)})
         requests_made += pages
     sold, sales = aggregate_sales(receipts, start, end)
+    trading = performance.build(receipts, [store['id'] for store in stores if store.get('id')])
     currency = profile.get('currency') if isinstance(profile, dict) else None
     money = {'code': text(currency.get('code')) if isinstance(currency, dict) else None,
              'decimal_places': currency.get('decimal_places') if isinstance(currency, dict) else None}
     if not isinstance(money['decimal_places'], int) or isinstance(money['decimal_places'], bool):
         money['decimal_places'] = None
-    return build(stores, categories, items, inventory, store_map(), money, sold, sales), requests_made
+    return build(stores, categories, items, inventory, store_map(), money, sold, sales, trading), requests_made
 
 
 def index_stores(stores, mapping):
@@ -334,7 +342,7 @@ def option_labels(item):
             text(item.get('option3_name'))]
 
 
-def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None):
+def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None, trading=None):
     store_rows, unmatched_mapping = index_stores(stores, mapping)
     levels = index_inventory(inventory)
     category_names = {}
@@ -397,7 +405,8 @@ def build(stores, categories, items, inventory, mapping, money, sold=None, sales
         })
     built.sort(key=lambda row: ((row['name'] or '').lower(), row['id']))
     return {'schema_version': SCHEMA_VERSION, 'captured_at': now(), 'currency': money,
-            'sales': sales, 'stores': store_rows, 'unmatched_store_mapping': unmatched_mapping,
+            'sales': sales, 'performance': trading, 'stores': store_rows,
+            'unmatched_store_mapping': unmatched_mapping,
             'categories': sorted(({'id': key, 'name': value} for key, value in category_names.items()),
                                  key=lambda row: (row['name'] or '').lower()),
             'items': built, 'counts': counts(built, store_rows), 'limitations': LIMITATIONS}
@@ -452,7 +461,11 @@ def scope(catalogue, user):
         variants = [dict(variant, stores=[row for row in variant['stores'] if row['store_id'] in allowed])
                     for variant in item['variants']]
         items.append(dict(item, variants=variants))
-    scoped = dict(catalogue, stores=stores, items=items, counts=counts(items, stores))
+    trading = catalogue.get('performance')
+    if isinstance(trading, dict):
+        trading = {key: value for key, value in trading.items() if key in allowed}
+    scoped = dict(catalogue, stores=stores, items=items, performance=trading,
+                  counts=counts(items, stores))
     if user['role'] != 'owner':
         scoped.pop('unmatched_store_mapping', None)
     return scoped
