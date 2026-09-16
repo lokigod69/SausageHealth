@@ -170,3 +170,82 @@ def test_no_configuration_means_no_advice_not_a_default(monkeypatch):
     monkeypatch.delenv('SH_LOYVERSE_SUPPLIERS', raising=False)
     assert suppliers.registry() is None
     assert suppliers.assign([item()], date(2026, 9, 16)) is None
+
+
+LINKED = {
+    'suppliers': [
+        {'id': 'market', 'name': 'Market Co', 'lead_days': 8,
+         'search_url': 'https://example.test/search?q={query}',
+         'alternatives': [{'name': 'Other Market', 'url': 'https://other.test/shop'}]},
+        {'id': 'plain', 'name': 'Plain Co', 'lead_days': 1},
+    ],
+    'rules': [
+        {'match': {'category': 'Pantry'}, 'supplier': 'market'},
+        {'match': {'category': 'Fresh'}, 'supplier': 'plain'},
+    ],
+    'links': {
+        '10184': {'url': 'https://example.test/item/10184', 'note': 'family pack',
+                  'alternatives': [{'name': 'Second seller',
+                                    'url': 'https://example.test/other/10184'}]},
+    },
+}
+
+
+def linked_item(name='Oregano Flakes 50g', category='Pantry', sku='10184'):
+    return {'name': name, 'category_name': category,
+            'variants': [{'variant_id': 'v1', 'sku': sku, 'stores': [row()]}]}
+
+
+def test_a_recorded_listing_is_used_before_any_search(monkeypatch):
+    config = configured(monkeypatch, LINKED)
+    result = suppliers.assign([linked_item()], date(2026, 9, 16), config)
+    entry = result['assignments'][('v1', 'store-a')]
+    assert entry['buy_url'] == 'https://example.test/item/10184'
+    assert entry['buy_kind'] == 'listing' and entry['buy_note'] == 'family pack'
+    # The product's own second seller comes before the supplier-wide one.
+    assert [source['name'] for source in entry['other_sources']] == [
+        'Second seller', 'Other Market']
+
+
+def test_without_a_listing_the_supplier_search_stands_in_and_says_so(monkeypatch):
+    config = configured(monkeypatch, LINKED)
+    result = suppliers.assign([linked_item(name='Sweet Relish 710ml', sku='99999')],
+                              date(2026, 9, 16), config)
+    entry = result['assignments'][('v1', 'store-a')]
+    assert entry['buy_kind'] == 'search'
+    assert entry['buy_url'] == 'https://example.test/search?q=Sweet%20Relish%20710ml'
+    assert [source['name'] for source in entry['other_sources']] == ['Other Market']
+
+
+def test_a_supplier_with_no_search_and_no_listing_offers_no_link(monkeypatch):
+    config = configured(monkeypatch, LINKED)
+    result = suppliers.assign([linked_item(category='Fresh', sku='55555')],
+                              date(2026, 9, 16), config)
+    entry = result['assignments'][('v1', 'store-a')]
+    assert entry['buy_url'] is None and entry['buy_kind'] is None
+    assert entry['other_sources'] == []
+
+
+def test_links_can_also_be_recorded_against_the_item_name(monkeypatch):
+    config = configured(monkeypatch, dict(LINKED, links={
+        'oregano flakes 50g': {'url': 'https://example.test/by-name'}}))
+    result = suppliers.assign([linked_item(sku=None)], date(2026, 9, 16), config)
+    assert result['assignments'][('v1', 'store-a')]['buy_url'] == 'https://example.test/by-name'
+
+
+def test_a_link_that_is_not_plain_https_is_refused(monkeypatch):
+    for bad_url in ('javascript:alert(1)', 'http://example.test/x', 'data:text/html,x',
+                    'https://example.test/"onmouseover="x'):
+        monkeypatch.setenv('SH_LOYVERSE_SUPPLIERS', json.dumps(
+            dict(LINKED, links={'10184': {'url': bad_url}})))
+        with pytest.raises(ValueError):
+            suppliers.registry()
+
+
+def test_a_search_template_without_a_query_placeholder_is_refused(monkeypatch):
+    monkeypatch.setenv('SH_LOYVERSE_SUPPLIERS', json.dumps({
+        'suppliers': [{'id': 'a', 'name': 'A', 'lead_days': 1,
+                       'search_url': 'https://example.test/search'}], 'rules': []}))
+    with pytest.raises(ValueError):
+        suppliers.registry()
+

@@ -4589,3 +4589,32 @@ legend {
   white-space: nowrap;
   font-size: 10px;
 }
+
+.order-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.order-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.order-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--accent);
+  border: 1px solid #aa87513d;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.order-links a:hover {
+  background: #b8852110;
+}
+.order-links a.other-source {
+  color: var(--muted);
+  border-color: var(--line);
+}

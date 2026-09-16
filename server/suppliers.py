@@ -19,6 +19,7 @@ lead time would be a guess dressed as a recommendation.
 import json
 import os
 from datetime import date, timedelta
+from urllib.parse import quote
 
 WEEKDAYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')
 
@@ -35,6 +36,37 @@ def whole_days(value, field):
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 120:
         raise ValueError(f'{field} must be a whole number of days from 0 to 120.')
     return value
+
+
+def safe_url(value, field):
+    """Only plain https links. A javascript: or data: href would be an injection."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if not text.lower().startswith('https://') or len(text) > 600:
+        raise ValueError(f'{field} must be an https link under 600 characters.')
+    if any(character in text for character in '<>"\'' + chr(10) + chr(13)):
+        raise ValueError(f'{field} contains characters that are not allowed in a link.')
+    return text
+
+
+def parse_alternatives(raw, field):
+    out = []
+    for entry in raw or []:
+        if not isinstance(entry, dict) or not entry.get('name'):
+            raise ValueError(f'Every entry in {field} needs a name.')
+        template = entry.get('search_url')
+        if template:
+            safe_url(str(template).replace('{query}', 'x'), field + '.search_url')
+            if '{query}' not in str(template):
+                raise ValueError(f'{field}.search_url must contain {{query}}.')
+        out.append({'name': str(entry['name'])[:60],
+                    'url': safe_url(entry.get('url'), field + '.url'),
+                    'search_url': str(template) if template else None,
+                    'note': str(entry.get('note') or '')[:120] or None})
+    return out
 
 
 def registry():
@@ -54,7 +86,15 @@ def registry():
             raise ValueError('Every supplier needs an id and a name.')
         supplier = {'id': str(entry['id']), 'name': str(entry['name'])[:80],
                     'note': str(entry.get('note') or '')[:200] or None,
-                    'buffer_days': whole_days(entry.get('buffer_days', 0), 'buffer_days')}
+                    'buffer_days': whole_days(entry.get('buffer_days', 0), 'buffer_days'),
+                    'search_url': None, 'alternatives': parse_alternatives(
+                        entry.get('alternatives'), 'supplier alternatives')}
+        template = entry.get('search_url')
+        if template:
+            checked = safe_url(str(template).replace('{query}', 'x'), 'search_url')
+            if checked is None or '{query}' not in str(template):
+                raise ValueError('search_url must be an https link containing {query}.')
+            supplier['search_url'] = str(template)
         cycle = entry.get('cycle')
         if cycle is not None:
             if not isinstance(cycle, dict):
@@ -96,9 +136,17 @@ def registry():
             'name_exact': str(match['name_exact']).lower() if match.get('name_exact') else None,
             'alternative': rule.get('alternative') if rule.get('alternative') in suppliers else None,
         })
+    links = {}
+    for key, entry in (parsed.get('links') or {}).items():
+        if not isinstance(entry, dict):
+            raise ValueError('Every link entry must be an object.')
+        links[str(key).strip().lower()] = {
+            'url': safe_url(entry.get('url'), 'link url'),
+            'note': str(entry.get('note') or '')[:120] or None,
+            'alternatives': parse_alternatives(entry.get('alternatives'), 'link alternatives')}
     if not suppliers:
         raise ValueError('SH_LOYVERSE_SUPPLIERS lists no suppliers.')
-    return {'suppliers': suppliers, 'rules': rules}
+    return {'suppliers': suppliers, 'rules': rules, 'links': links}
 
 
 def match(rules, item_name, category_name):
@@ -204,6 +252,7 @@ def assign(items, today, config=None):
                     other = config['suppliers'][rule['alternative']]
                     entry['alternative_name'] = other['name']
                     entry['alternative_lead_days'] = other['lead_days']
+                entry.update(buying_links(config, supplier, variant, item))
                 assignments[key] = entry
     seen = {row['variant_id'] for row in unassigned}
     return {'assignments': assignments,
@@ -212,6 +261,37 @@ def assign(items, today, config=None):
                                  key=lambda row: (row['category'] or '', row['item'] or ''))[:200],
             'unassigned_count': len(seen),
             'suppliers': sorted(config['suppliers'].values(), key=lambda row: row['name'])}
+
+
+def buying_links(config, supplier, variant, item):
+    """An exact listing when one is recorded, otherwise a search at that supplier.
+
+    A search link is explicitly marked as a search: it finds candidates, it does
+    not identify the listing the shop actually buys from.
+    """
+    name = (item.get('name') or '').strip()
+    recorded = None
+    for key in (variant.get('sku'), name):
+        if key and str(key).strip().lower() in config.get('links', {}):
+            recorded = config['links'][str(key).strip().lower()]
+            break
+    result = {'buy_url': None, 'buy_kind': None, 'buy_note': None,
+              'other_sources': list(supplier.get('alternatives') or [])}
+    if recorded and recorded['url']:
+        result.update(buy_url=recorded['url'], buy_kind='listing', buy_note=recorded['note'])
+    elif supplier.get('search_url') and name:
+        result.update(buy_url=supplier['search_url'].replace('{query}', quote(name)),
+                      buy_kind='search')
+    if recorded:
+        result['other_sources'] = list(recorded['alternatives']) + result['other_sources']
+    resolved = []
+    for source in result['other_sources']:
+        url = source.get('url')
+        if not url and source.get('search_url') and name:
+            url = source['search_url'].replace('{query}', quote(name))
+        resolved.append({'name': source['name'], 'url': url, 'note': source.get('note')})
+    result['other_sources'] = resolved
+    return result
 
 
 def cover(row):

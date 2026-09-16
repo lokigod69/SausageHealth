@@ -3,6 +3,7 @@ import {
   CircleAlert,
   CircleHelp,
   Clock,
+  ExternalLink,
   LockKeyhole,
   PackageCheck,
   RefreshCw,
@@ -544,7 +545,46 @@ export function PerformancePage({ user, scope }: { user: User; scope: Store }) {
                         <ul className="order-list">
                           {rows.slice(0, 12).map((line) => (
                             <li key={line.variantId}>
-                              <span>{line.name}</span>
+                              <span className="order-item">
+                                {line.name}
+                                <span className="order-links">
+                                  {line.reorder!.buy_url && (
+                                    <a
+                                      href={line.reorder!.buy_url}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                      title={
+                                        line.reorder!.buy_kind === "search"
+                                          ? "Searches the supplier. It does not identify the exact listing you buy."
+                                          : (line.reorder!.buy_note ??
+                                            "The recorded listing")
+                                      }
+                                    >
+                                      {line.reorder!.buy_kind === "search"
+                                        ? "search"
+                                        : "listing"}
+                                      <ExternalLink size={10} />
+                                    </a>
+                                  )}
+                                  {line
+                                    .reorder!.other_sources.filter(
+                                      (source) => source.url,
+                                    )
+                                    .map((source) => (
+                                      <a
+                                        key={source.name}
+                                        href={source.url!}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="other-source"
+                                        title={source.note ?? "Second source"}
+                                      >
+                                        {source.name}
+                                        <ExternalLink size={10} />
+                                      </a>
+                                    ))}
+                                </span>
+                              </span>
                               <small
                                 className={
                                   line.reorder!.status === "out_of_stock"

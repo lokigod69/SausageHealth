@@ -275,6 +275,10 @@ export type Reorder = {
   days_of_cover: number | null;
   alternative_name?: string;
   alternative_lead_days?: { min: number; max: number };
+  buy_url: string | null;
+  buy_kind: "listing" | "search" | null;
+  buy_note: string | null;
+  other_sources: { name: string; url: string | null; note: string | null }[];
 };
 export type LoyverseVariant = {
   variant_id: string;
