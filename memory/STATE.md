@@ -10,6 +10,16 @@ The owner requested a printable document to forward to Moritz and clarification 
 
 Live workspace: https://ops.thesausageguy.shop . Michael owner and Moritz manager accounts already exist. The owner deferred personal login/phone testing while requesting intake; do not badger for login, domain, provider/IP or Moritz's email again. Preserve Tropical Observatory and plain copy. `D:/CODING/SAUSAGE` and `D:/CODING/LOYVERSE` remain unchanged/read-only.
 
+## Supplier lead times (16 September)
+
+The owner supplied lead times for most of the catalogue by supplier. **Those details are deliberately not in this repository.** The GitHub repository is public, supplier relationships are commercially sensitive, and nothing in `memory/` or `docs/` is private. The working draft lives in ignored `.data/suppliers-draft.json` on the admin machine and belongs in the runtime database once a supplier feature exists. Do not copy supplier names, rhythms or lead times into any tracked file.
+
+Loyverse itself holds **no supplier data at all**: the `/suppliers` endpoint returns zero records and not one of the 349 items carries a `primary_supplier_id`. So there is nothing to read from the POS, and any supplier mapping this workspace uses has to be its own.
+
+Coverage of what the owner stated: **176 of 349 items, half the catalogue, still have no stated lead time** — Herbs & Spices, Pantry & Preserves, Snacks & Sweets, Breakfast & Cereals and the uncategorised items. Those same 176 items are only **5.1% of takings**, so the remaining questions are worth asking selectively rather than in bulk.
+
+Two things the owner should confirm rather than have assumed: Chicken Breast was named under two different suppliers, and sausages were attributed to three different sources at once. The specifics are in the ignored draft. Also worth a second look: the Expat Meals the owner plans to stop selling took **PHP 101,376** over 87 days, the fifth largest category.
+
 ## Performance page (16 September)
 
 A Performance page derives trading figures from the same receipt read: takings and units per day, a weekday-by-hour heatmap, bestsellers by takings and by units, weakest sellers with their last sale, stock that never sold, products already out of stock while still selling, products under two weeks of cover, and regular sellers with no low-stock threshold.
@@ -20,9 +30,9 @@ Everything there is reported, not reconciled, and no cost, margin or profit is d
 
 ## Trading context that changes how sales read (16 September)
 
-**The two weeks to roughly 16 September are not normal trading.** The owner reports the shop was being renovated and customers assumed it was closed; it is now open as usual again. Any decline over that period is a visibility effect, not demand. Do not read the recent weekly drop as a trend, do not set reorder targets from it, and mark or exclude that period before comparing anything.
+**1 to 12 September 2026 is not normal trading.** The owner confirmed the exact dates: the shop was being renovated and customers assumed it was closed; it is open as usual again. This is now set in the production `SH_LOYVERSE_EXCLUDED_PERIODS`, so those days are flagged rather than quietly dragging comparisons down. Any decline over that period is a visibility effect, not demand. Do not read the recent weekly drop as a trend, do not set reorder targets from it, and mark or exclude that period before comparing anything.
 
-Observed in the weekly figures and consistent with this: Brazilian Ribeye ran 68, 55, 29, 25 units across the four weeks to 16 September. English Bangers ran 25, 28, 2, 5, which looks more like a supply interruption than demand and still needs its own explanation from Moritz.
+Observed in the weekly figures and consistent with this: Brazilian Ribeye ran 68, 55, 29, 25 units across the four weeks to 16 September. English Bangers ran 25, 28, 2, 5. An earlier note here guessed at a supply interruption; that was wrong. The owner says Bangers are always in stock, and the weekly buckets confirm it: weeks three and four of that window fall inside 1-12 September, so the renovation explains both products.
 
 **Receipt history is about three months, not six.** The account holds exactly 1,587 receipts covering business dates 2026-06-21 to 2026-09-16, which is 88 trading days and 4,613 line rows. Nothing earlier exists to fetch, so any longer comparison is impossible for now rather than merely unfetched. Verified with no lower bound on the query.
 
