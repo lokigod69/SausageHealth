@@ -20,6 +20,7 @@ import {
   type LoyverseCatalogue,
   type LoyverseCurrency,
   type LoyverseItem,
+  type LoyverseSales,
   type LoyverseStoreRow,
   type LoyverseVariant,
   type LoyverseView,
@@ -41,10 +42,13 @@ const statusFilters = {
   unknown: "Stock unknown",
   not_tracked: "Stock not tracked",
   unavailable: "Not available for sale",
+  sold: "Sold something this window",
+  unsold: "Sold nothing this window",
 } as const;
 type StatusFilter = keyof typeof statusFilters;
 const sorters = {
   name: "Item name",
+  selling: "Best sellers first",
   shortfall: "Largest shortfall first",
   stock: "Lowest known stock first",
 } as const;
@@ -116,6 +120,55 @@ function StockCell({ store }: { store: LoyverseStoreRow }) {
   );
 }
 
+function WeeklyCell({
+  store,
+  sales,
+}: {
+  store: LoyverseStoreRow;
+  sales: LoyverseSales | null;
+}) {
+  if (store.sold_per_week === null || !sales)
+    return (
+      <span
+        className="unknown-value"
+        title="This snapshot was taken before sales were read. Refresh to add them."
+      >
+        No sales read
+      </span>
+    );
+  const weeks = store.weekly_units ?? [];
+  const peak = Math.max(
+    1,
+    ...weeks.map((value) => Math.abs(Number(value) || 0)),
+  );
+  return (
+    <span className="sold-value">
+      <strong>{quantity(store.sold_per_week)}</strong>
+      <small>
+        {quantity(store.sold_units)} in {sales.weeks} weeks
+      </small>
+      {weeks.length > 0 && (
+        <span
+          className="week-bars"
+          aria-hidden="true"
+          title={weeks
+            .map((value, index) => `week ${index + 1}: ${quantity(value)}`)
+            .join(" · ")}
+        >
+          {weeks.map((value, index) => (
+            <i
+              key={index}
+              style={{
+                height: `${Math.max(2, (Math.abs(Number(value) || 0) / peak) * 18)}px`,
+              }}
+            />
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function RowStatus({ store }: { store: LoyverseStoreRow }) {
   if (store.available_for_sale === false)
     return <span className="tag">Not for sale</span>;
@@ -148,8 +201,21 @@ function Summary({ catalogue }: { catalogue: LoyverseCatalogue }) {
       note: "at or under threshold",
     },
     { label: "Not tracked", value: c.not_tracked, note: "no count kept" },
-    { label: "Unknown", value: c.unknown_stock, note: "no level returned" },
-  ];
+    catalogue.sales
+      ? {
+          label: "Sold",
+          value: c.with_sales,
+          note: `moved in ${catalogue.sales.weeks} weeks`,
+        }
+      : { label: "Unknown", value: c.unknown_stock, note: "no level returned" },
+    catalogue.sales
+      ? {
+          label: "No movement",
+          value: c.no_sales,
+          note: `nothing sold in ${catalogue.sales.weeks} weeks`,
+        }
+      : null,
+  ].filter((tile) => tile !== null);
   return (
     <div className="items-summary">
       {tiles.map((tile) => (
@@ -253,6 +319,16 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
         return false;
       if (status === "unavailable" && row.store.available_for_sale !== false)
         return false;
+      if (
+        status === "sold" &&
+        !(row.store.sold_units !== null && Number(row.store.sold_units) > 0)
+      )
+        return false;
+      if (
+        status === "unsold" &&
+        !(row.store.sold_units !== null && Number(row.store.sold_units) <= 0)
+      )
+        return false;
       if (!needle) return true;
       return [
         row.item.name,
@@ -267,6 +343,12 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
         .includes(needle);
     });
     const ordered = [...matched];
+    if (sorter === "selling")
+      ordered.sort(
+        (a, b) =>
+          (sortable(b.store.sold_units) || 0) -
+          (sortable(a.store.sold_units) || 0),
+      );
     if (sorter === "shortfall")
       ordered.sort(
         (a, b) =>
@@ -366,6 +448,9 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                   {visibleStores.length === 1
                     ? (visibleStores[0].name ?? "one store")
                     : `${visibleStores.length} stores`}
+                  {catalogue.sales
+                    ? ` · sales counted over ${catalogue.sales.weeks} weeks to ${catalogue.sales.to.slice(0, 10)}`
+                    : " · no sales read yet"}
                 </span>
               </>
             ) : (
@@ -559,6 +644,9 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                       Cost
                     </th>
                     <th scope="col" className="numeric">
+                      Per week
+                    </th>
+                    <th scope="col" className="numeric">
                       In stock
                     </th>
                     <th scope="col" className="numeric">
@@ -632,6 +720,12 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                           ) : (
                             money(variant.cost, currency)
                           )}
+                        </td>
+                        <td data-label="Per week" className="numeric">
+                          <WeeklyCell
+                            store={storeRow}
+                            sales={catalogue.sales}
+                          />
                         </td>
                         <td data-label="In stock" className="numeric">
                           <StockCell store={storeRow} />

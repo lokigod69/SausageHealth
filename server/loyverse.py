@@ -1,8 +1,10 @@
 """Read-only Loyverse catalogue mirror.
 
-GET only. This module never writes to the POS, registers a webhook, or runs on a
-schedule: a person asks for each refresh, every call is audited, and the account
-rate limit is bounded by a cooldown and a daily cap.
+GET only. This module never writes to the POS and never registers a webhook.
+A person asks for each refresh, and since 16 September a once-a-day scheduled
+read runs as well at the owner's explicit request. Every call is audited against
+a real identity, and the account rate limit is bounded by a cooldown and a daily
+cap. A schedule that only reads is still not permission to write.
 
 Honesty rules that the rest of the app depends on:
   * A number that the source did not supply stays missing. It never becomes zero.
@@ -17,6 +19,7 @@ Honesty rules that the rest of the app depends on:
 import json
 import os
 import secrets
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -24,21 +27,28 @@ from pathlib import Path
 import httpx
 from fastapi import HTTPException
 
-from .db import audit, connect, data_dir, now
+from .db import audit, connect, data_dir, now, password_hash
 
 BASE = 'https://api.loyverse.com/v1.0'
 PAGE_SIZE = 250
 MAX_PAGES = 40
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 WORKSPACE_STORES = ('sausage', 'health')
 KEEP_PAYLOADS = 3
 KEEP_ROWS = 50
+# Receipts are filtered on created_at but counted by receipt_date, so the fetch
+# starts earlier than the window to pick up sales that were uploaded late.
+LATE_UPLOAD_GRACE_DAYS = 4
+# A reserved .invalid address that can never receive mail, holding a discarded
+# password so the scheduled reader has an auditable identity but no way in.
+SYSTEM_ACTOR_EMAIL = 'scheduled-sync@sausage-health.invalid'
 LIMITATIONS = [
     'A read-only mirror of the Loyverse catalogue, captured when someone pressed refresh.',
     'Stock is the figure Loyverse held at capture time. It is not a physical count.',
     'Cost is the number recorded in Loyverse. Actual unit cost is still unverified.',
     'Items whose stock is not tracked, and stores with no inventory level, are reported as such and never as zero.',
-    'No sales, margin, stock value, or profit is derived here.',
+    'Sales per week count receipts by their business date. A late upload can still change a recent week.',
+    'Sales are counted units only. No margin, stock value or profit is derived here.',
 ]
 
 
@@ -130,11 +140,91 @@ def get_pages(client, path, key, params=None):
             raise ValueError('This catalogue is larger than the bounded reader supports: ' + key)
 
 
+def sales_days():
+    """Whole weeks only, so a weekly average never divides by a ragged window."""
+    requested = bounded('SH_LOYVERSE_SALES_DAYS', '28', 371)
+    return max(7, (requested // 7) * 7)
+
+
+def business_date(value):
+    """Loyverse business dates are UTC instants; the calendar day is what reporting uses."""
+    stamp = text(value)
+    if not stamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+    except ValueError:
+        raise ValueError('Unreadable receipt date')
+    if parsed.tzinfo is None:
+        raise ValueError('Receipt date has no timezone')
+    return parsed.astimezone(timezone.utc)
+
+
+def aggregate_sales(receipts, start, end):
+    """Net units per variant and store, bucketed into whole weeks by business date.
+
+    A refund arrives as a positive magnitude, so the sign is applied exactly once
+    here. Cancelled receipts and anything that is not a sale or refund are counted
+    separately and never silently folded into a total.
+    """
+    weeks = (end - start).days // 7
+    if weeks < 1:
+        raise ValueError('A sales window needs at least one whole week')
+    sold = defaultdict(lambda: {'units': Decimal(0), 'weekly': [Decimal(0)] * weeks})
+    counted = cancelled = other = outside = 0
+    refunds = 0
+    for receipt in receipts:
+        if text(receipt.get('cancelled_at')):
+            cancelled += 1
+            continue
+        kind = text(receipt.get('receipt_type'))
+        if kind not in ('SALE', 'REFUND'):
+            other += 1
+            continue
+        moment = business_date(receipt.get('receipt_date'))
+        if moment is None or not start <= moment < end:
+            outside += 1
+            continue
+        index = min(weeks - 1, (moment - start).days // 7)
+        sign = -1 if kind == 'REFUND' else 1
+        refunds += kind == 'REFUND'
+        counted += 1
+        store_id = text(receipt.get('store_id'))
+        for line in receipt.get('line_items') or []:
+            variant_id = text(line.get('variant_id'))
+            if not variant_id or not store_id:
+                continue
+            quantity = number(line.get('quantity'))
+            if quantity is None:
+                continue
+            entry = sold[(variant_id, store_id)]
+            entry['units'] += sign * quantity
+            entry['weekly'][index] += sign * quantity
+    return sold, {'window_days': (end - start).days, 'weeks': weeks,
+                  'from': start.isoformat(), 'to': end.isoformat(),
+                  'counted_receipts': counted, 'refund_receipts': refunds,
+                  'cancelled_skipped': cancelled, 'other_types_skipped': other,
+                  'outside_window_skipped': outside, 'basis': 'receipt_date'}
+
+
+def sales_row(sold, variant_id, store_id, weeks):
+    """A variant with no line in the window genuinely sold nothing we can see."""
+    entry = sold.get((variant_id, store_id))
+    units = entry['units'] if entry else Decimal(0)
+    weekly = entry['weekly'] if entry else [Decimal(0)] * weeks
+    average = (units / weeks).quantize(Decimal('0.01'))
+    return {'sold_units': digits(units), 'sold_per_week': digits(average),
+            'weekly_units': [digits(value) for value in weekly]}
+
 def capture():
-    """Six kinds of GET against official endpoints. No writes, no redirects, no tools."""
+    """Read-only GETs against official endpoints. No writes, no redirects, no tools."""
     headers = {'Authorization': 'Bearer ' + token(), 'Accept': 'application/json'}
     requests_made = 0
-    with httpx.Client(timeout=40, follow_redirects=False, headers=headers) as client:
+    days = sales_days()
+    end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = end - timedelta(days=days)
+    stamp = lambda moment: moment.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    with httpx.Client(timeout=60, follow_redirects=False, headers=headers) as client:
         merchant = client.get(BASE + '/merchant/')
         if merchant.status_code in (401, 403):
             raise HTTPException(502, 'Loyverse refused the stored access credential. Ask the technical owner to check it.')
@@ -149,12 +239,19 @@ def capture():
         requests_made += pages
         inventory, pages = get_pages(client, '/inventory', 'inventory_levels')
         requests_made += pages
+        # Fetch from before the window: receipts are filtered on created_at but
+        # counted by receipt_date, and late uploads have been observed here.
+        receipts, pages = get_pages(client, '/receipts', 'receipts', {
+            'created_at_min': stamp(start - timedelta(days=LATE_UPLOAD_GRACE_DAYS)),
+            'created_at_max': stamp(end)})
+        requests_made += pages
+    sold, sales = aggregate_sales(receipts, start, end)
     currency = profile.get('currency') if isinstance(profile, dict) else None
     money = {'code': text(currency.get('code')) if isinstance(currency, dict) else None,
              'decimal_places': currency.get('decimal_places') if isinstance(currency, dict) else None}
     if not isinstance(money['decimal_places'], int) or isinstance(money['decimal_places'], bool):
         money['decimal_places'] = None
-    return build(stores, categories, items, inventory, store_map(), money), requests_made
+    return build(stores, categories, items, inventory, store_map(), money, sold, sales), requests_made
 
 
 def index_stores(stores, mapping):
@@ -186,7 +283,8 @@ def index_inventory(inventory):
     return levels
 
 
-def variant_store_row(entry, store, levels, variant_id, track_stock, components_only):
+def variant_store_row(entry, store, levels, variant_id, track_stock, components_only,
+                      sold=None, weeks=None):
     """One variant in one store. Absent settings and absent stock stay absent."""
     row = {'store_id': store['id'], 'store_name': store['name'],
            'workspace_store': store['workspace_store'], 'settings_present': entry is not None,
@@ -218,6 +316,11 @@ def variant_store_row(entry, store, levels, variant_id, track_stock, components_
             row['below_optimal'] = digits(Decimal(row['optimal_stock']) - in_stock)
         if row['low_stock'] is not None and in_stock <= Decimal(row['low_stock']):
             row['low_stock_alert'] = True
+    # Without a sales window the figures are absent, not zero: an old snapshot
+    # carries no receipts, and that is different from selling nothing.
+    row.update(sold_units=None, sold_per_week=None, weekly_units=None)
+    if sold is not None and weeks:
+        row.update(sales_row(sold, variant_id, store['id'], weeks))
     return row
 
 
@@ -231,7 +334,7 @@ def option_labels(item):
             text(item.get('option3_name'))]
 
 
-def build(stores, categories, items, inventory, mapping, money):
+def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None):
     store_rows, unmatched_mapping = index_stores(stores, mapping)
     levels = index_inventory(inventory)
     category_names = {}
@@ -279,7 +382,8 @@ def build(stores, categories, items, inventory, mapping, money):
                 'default_pricing_type': text(variant.get('default_pricing_type')),
                 'updated_at': text(variant.get('updated_at')),
                 'stores': [variant_store_row(entries.get(store['id']), store, levels, variant_id,
-                                             track_stock, components_only)
+                                             track_stock, components_only, sold,
+                                             sales['weeks'] if sales else None)
                            for store in store_rows],
             })
         built.append({
@@ -293,7 +397,7 @@ def build(stores, categories, items, inventory, mapping, money):
         })
     built.sort(key=lambda row: ((row['name'] or '').lower(), row['id']))
     return {'schema_version': SCHEMA_VERSION, 'captured_at': now(), 'currency': money,
-            'stores': store_rows, 'unmatched_store_mapping': unmatched_mapping,
+            'sales': sales, 'stores': store_rows, 'unmatched_store_mapping': unmatched_mapping,
             'categories': sorted(({'id': key, 'name': value} for key, value in category_names.items()),
                                  key=lambda row: (row['name'] or '').lower()),
             'items': built, 'counts': counts(built, store_rows), 'limitations': LIMITATIONS}
@@ -312,7 +416,11 @@ def counts(items, store_rows):
             'below_optimal': sum(1 for row in rows if row['below_optimal'] is not None),
             'low_stock_alerts': sum(1 for row in rows if row['low_stock_alert']),
             'optimal_stock_set': sum(1 for row in rows if row['optimal_stock'] is not None),
-            'unavailable': sum(1 for row in rows if row['available_for_sale'] is False)}
+            'unavailable': sum(1 for row in rows if row['available_for_sale'] is False),
+            'with_sales': sum(1 for row in rows if row['sold_units'] is not None
+                              and Decimal(row['sold_units']) > 0),
+            'no_sales': sum(1 for row in rows if row['sold_units'] is not None
+                            and Decimal(row['sold_units']) <= 0)}
 
 
 def bounded(name, fallback, ceiling):
@@ -377,7 +485,26 @@ def latest(user):
     return result
 
 
-def sync(actor):
+def system_actor():
+    """A non-login account, so a scheduled read is still attributable."""
+    with connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        row = db.execute('SELECT id,name,email,role,stores FROM users WHERE email=?',
+                         (SYSTEM_ACTOR_EMAIL,)).fetchone()
+        if row:
+            return {'id': row['id'], 'name': row['name'], 'email': row['email'],
+                    'role': row['role'], 'stores': json.loads(row['stores'])}
+        actor_id = secrets.token_hex(16)
+        # The plaintext is generated and immediately discarded: nothing can match this hash.
+        db.execute('INSERT INTO users VALUES (?,?,?,?,?,?,?)',
+                   (actor_id, SYSTEM_ACTOR_EMAIL, 'Scheduled sync',
+                    password_hash(secrets.token_urlsafe(64)), 'staff', json.dumps([]), now()))
+        audit(db, actor_id, 'loyverse.schedule_identity_created')
+        return {'id': actor_id, 'name': 'Scheduled sync', 'email': SYSTEM_ACTOR_EMAIL,
+                'role': 'staff', 'stores': []}
+
+
+def sync(actor, scheduled=False):
     """One owner-initiated read. Never scheduled, never a POS write."""
     if not enabled():
         raise HTTPException(503, 'The Loyverse connection is switched off. The technical owner enables it in server configuration.')
@@ -400,14 +527,16 @@ def sync(actor):
         previous = db.execute('''SELECT started_at FROM loyverse_syncs WHERE status='complete'
           ORDER BY started_at DESC LIMIT 1''').fetchone()
         waited = since(previous['started_at']) if previous else None
-        if cooldown and waited is not None and waited < cooldown:
+        # The daily job runs once by definition; the cooldown guards click-spamming.
+        if cooldown and not scheduled and waited is not None and waited < cooldown:
             raise HTTPException(429, f'Loyverse was read {int(waited)} seconds ago. Wait {cooldown - int(waited)} seconds before refreshing again.')
         used = db.execute('SELECT COUNT(*) FROM loyverse_syncs WHERE started_at>=?', (stamp[:10],)).fetchone()[0]
         if used >= daily:
             raise HTTPException(429, 'The daily Loyverse refresh limit has been reached. The last saved list is still shown.')
         db.execute('INSERT INTO loyverse_syncs(id,actor_id,started_at,finished_at,status,payload,error,request_count) VALUES (?,?,?,?,?,?,?,?)',
                    (run_id, actor['id'], stamp, None, 'running', None, None, 0))
-        audit(db, actor['id'], 'loyverse.refresh_requested', None, run_id)
+        audit(db, actor['id'], 'loyverse.refresh_requested' if not scheduled
+              else 'loyverse.refresh_requested_on_schedule', None, run_id)
     try:
         catalogue, requests_made = capture()
         payload = json.dumps(catalogue, separators=(',', ':'))
@@ -436,9 +565,12 @@ def sync(actor):
         surplus = db.execute('SELECT id FROM loyverse_syncs ORDER BY started_at DESC').fetchall()[KEEP_ROWS:]
         for row in surplus:
             db.execute('DELETE FROM loyverse_syncs WHERE id=?', (row['id'],))
-        audit(db, actor['id'], 'loyverse.refreshed', None,
-              json.dumps({'run': run_id, 'requests': requests_made, 'items': catalogue['counts']['items'],
-                          'variants': catalogue['counts']['variants']}))
+        audit(db, actor['id'], 'loyverse.refreshed' if not scheduled else 'loyverse.refreshed_on_schedule',
+              None, json.dumps({'run': run_id, 'requests': requests_made, 'items': catalogue['counts']['items'],
+                                'variants': catalogue['counts']['variants']}))
+    if scheduled:
+        return {'status': 'complete', 'run': run_id, 'requests': requests_made,
+                'captured_at': catalogue['captured_at'], 'counts': catalogue['counts']}
     return latest(actor)
 
 

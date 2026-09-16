@@ -87,38 +87,68 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export async function submitEntry(form: FormData): Promise<Entry> {
   const system = await api<{ upload_mode?: string }>("/system");
-  if (system.upload_mode !== "direct") return api<Entry>("/entries", { method: "POST", body: form });
-  const files = form.getAll("files").filter((file): file is File => file instanceof File);
+  if (system.upload_mode !== "direct")
+    return api<Entry>("/entries", { method: "POST", body: form });
+  const files = form
+    .getAll("files")
+    .filter((file): file is File => file instanceof File);
   const manifest = [];
   for (const file of files) {
-    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    manifest.push({ name: file.name, size: file.size,
-      sha256: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("") });
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      await file.arrayBuffer(),
+    );
+    manifest.push({
+      name: file.name,
+      size: file.size,
+      sha256: Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join(""),
+    });
   }
-  const fields = Object.fromEntries(["store", "category", "title", "notes", "occurred_on", "request_key"]
-    .map(key => [key, String(form.get(key) ?? "")]));
-  const intent = await api<{ entry?: Entry; id: string; files: { grant: string }[] }>("/upload-intents", {
-    method: "POST", body: JSON.stringify({ ...fields, files: manifest }),
+  const fields = Object.fromEntries(
+    ["store", "category", "title", "notes", "occurred_on", "request_key"].map(
+      (key) => [key, String(form.get(key) ?? "")],
+    ),
+  );
+  const intent = await api<{
+    entry?: Entry;
+    id: string;
+    files: { grant: string }[];
+  }>("/upload-intents", {
+    method: "POST",
+    body: JSON.stringify({ ...fields, files: manifest }),
   });
   if (intent.entry) return intent.entry;
   for (let index = 0; index < files.length; index++) {
     const { url } = await api<{ url: string }>("/storage", {
-      method: "POST", body: JSON.stringify({ grant: intent.files[index].grant }),
+      method: "POST",
+      body: JSON.stringify({ grant: intent.files[index].grant }),
     });
     let response: Response;
     try {
-      response = await fetch(url, { method: "PUT", credentials: "omit",
-        headers: { "Content-Type": "application/octet-stream" }, body: files[index] });
+      response = await fetch(url, {
+        method: "PUT",
+        credentials: "omit",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: files[index],
+      });
     } catch {
-      throw new ApiError("The file upload was interrupted. Keep this page open and retry.");
+      throw new ApiError(
+        "The file upload was interrupted. Keep this page open and retry.",
+      );
     }
     // A lost response may mean the immutable original is already there. Finalization verifies its bytes.
     // Blob currently reports an existing no-overwrite path as 400/bad_request.
     // Neither 400 nor 409 proves success: the finalizer must verify every size/hash.
     if (!response.ok && response.status !== 400 && response.status !== 409)
-      throw new ApiError("The file upload could not be confirmed. Keep this page open and retry.");
+      throw new ApiError(
+        "The file upload could not be confirmed. Keep this page open and retry.",
+      );
   }
-  return api<Entry>(`/upload-intents/${intent.id}/finalize`, { method: "POST" });
+  return api<Entry>(`/upload-intents/${intent.id}/finalize`, {
+    method: "POST",
+  });
 }
 
 export const storeNames: Record<Store, string> = {
@@ -226,6 +256,9 @@ export type LoyverseStoreRow = {
   stock_updated_at: string | null;
   below_optimal: string | null;
   low_stock_alert: boolean;
+  sold_units: string | null;
+  sold_per_week: string | null;
+  weekly_units: string[] | null;
 };
 export type LoyverseVariant = {
   variant_id: string;
@@ -265,11 +298,26 @@ export type LoyverseCounts = {
   low_stock_alerts: number;
   optimal_stock_set: number;
   unavailable: number;
+  with_sales: number;
+  no_sales: number;
+};
+export type LoyverseSales = {
+  window_days: number;
+  weeks: number;
+  from: string;
+  to: string;
+  counted_receipts: number;
+  refund_receipts: number;
+  cancelled_skipped: number;
+  other_types_skipped: number;
+  outside_window_skipped: number;
+  basis: string;
 };
 export type LoyverseCatalogue = {
   schema_version: number;
   captured_at: string;
   currency: LoyverseCurrency | null;
+  sales: LoyverseSales | null;
   stores: {
     id: string;
     name: string | null;

@@ -4,13 +4,16 @@ The point of these tests is that an absent number stays absent. A missing stock
 figure, an untracked item and an unset optimal stock must never reach the screen
 as zero.
 """
+import json
 from decimal import Decimal
 
 import pytest
+from fastapi.testclient import TestClient
 
 from server import loyverse
 from server.db import connect
-from test_app import env, client  # Shared fixture creates an isolated database per test.
+from server.main import app
+from test_app import env, client, HEADERS  # Shared fixture creates an isolated database per test.
 
 STORE = 'store-a'
 SECOND = 'store-b'
@@ -176,7 +179,12 @@ def test_counts_separate_known_from_unknown():
     assert catalogue['counts'] == {'stores': 1, 'mapped_stores': 0, 'items': 2, 'variants': 3,
                                    'variant_store_rows': 3, 'tracked': 1, 'not_tracked': 1,
                                    'components_only': 0, 'unknown_stock': 1, 'below_optimal': 1,
-                                   'low_stock_alerts': 0, 'optimal_stock_set': 1, 'unavailable': 1}
+                                   'low_stock_alerts': 0, 'optimal_stock_set': 1, 'unavailable': 1,
+                                   'with_sales': 0, 'no_sales': 0}
+    # A snapshot taken without a sales window reports absence, never a zero week.
+    assert catalogue['sales'] is None
+    row = catalogue['items'][0]['variants'][0]['stores'][0]
+    assert row['sold_units'] is None and row['sold_per_week'] is None and row['weekly_units'] is None
 
 
 def snapshot(store_ids=(STORE,), mapping=None):
@@ -332,3 +340,147 @@ def test_this_readers_own_validation_message_is_shown_but_provider_detail_is_not
     assert hidden.status_code == 502
     assert 'Jane Doe' not in hidden.text and 'test-token-never-a-real-credential' not in hidden.text
     assert 'Jane Doe' not in c.get('/api/loyverse/items').text
+
+
+from datetime import datetime, timedelta, timezone  # noqa: E402  (sales cases below)
+
+END = datetime(2026, 9, 15, tzinfo=timezone.utc)
+START = END - timedelta(days=28)
+
+
+def receipt(day, quantity='2', kind='SALE', variant_id='variant-1', store_id=STORE, **fields):
+    moment = START + timedelta(days=day)
+    return {'receipt_type': kind, 'cancelled_at': None, 'store_id': store_id,
+            'receipt_date': moment.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+            'line_items': [{'variant_id': variant_id, 'quantity': Decimal(quantity)}], **fields}
+
+
+def weekly(receipts, variant_id='variant-1', store_id=STORE):
+    sold, stats = loyverse.aggregate_sales(receipts, START, END)
+    return loyverse.sales_row(sold, variant_id, store_id, stats['weeks']), stats
+
+
+def test_sales_are_counted_per_week_by_business_date():
+    row, stats = weekly([receipt(0), receipt(3), receipt(8), receipt(21, '5')])
+    assert stats['weeks'] == 4 and stats['counted_receipts'] == 4
+    assert row['weekly_units'] == ['4', '2', '0', '5']
+    assert row['sold_units'] == '11' and row['sold_per_week'] == '2.75'
+
+
+def test_a_refund_is_subtracted_exactly_once():
+    # The API reports refund quantities as positive magnitudes.
+    row, stats = weekly([receipt(1, '10'), receipt(2, '3', 'REFUND')])
+    assert row['sold_units'] == '7' and row['weekly_units'][0] == '7'
+    assert stats['refund_receipts'] == 1
+
+
+def test_cancelled_and_foreign_receipts_are_excluded_and_counted():
+    receipts = [receipt(1), dict(receipt(2), cancelled_at='2026-09-01T00:00:00.000Z'),
+                receipt(3, kind='UNKNOWN_TYPE'), receipt(-5), receipt(400)]
+    row, stats = weekly(receipts)
+    assert row['sold_units'] == '2'
+    assert stats['cancelled_skipped'] == 1 and stats['other_types_skipped'] == 1
+    assert stats['outside_window_skipped'] == 2 and stats['counted_receipts'] == 1
+
+
+def test_a_variant_with_no_receipts_reads_as_zero_sold_not_unknown():
+    # Unlike stock, a complete receipt window is evidence that nothing sold.
+    row, _ = weekly([receipt(1, variant_id='variant-other')])
+    assert row['sold_units'] == '0' and row['sold_per_week'] == '0.00'
+    assert row['weekly_units'] == ['0', '0', '0', '0']
+
+
+def test_sales_are_kept_separate_per_store():
+    receipts = [receipt(1, '4', store_id=STORE), receipt(1, '9', store_id=SECOND)]
+    first, _ = weekly(receipts, store_id=STORE)
+    second, _ = weekly(receipts, store_id=SECOND)
+    assert first['sold_units'] == '4' and second['sold_units'] == '9'
+
+
+def test_fractional_quantities_stay_exact():
+    row, _ = weekly([receipt(1, '1.250'), receipt(2, '0.750')])
+    assert row['sold_units'] == '2.000' and row['sold_per_week'] == '0.50'
+
+
+def test_a_broken_receipt_date_stops_the_capture():
+    with pytest.raises(ValueError, match='Unreadable receipt date'):
+        loyverse.aggregate_sales([dict(receipt(1), receipt_date='not-a-date')], START, END)
+    with pytest.raises(ValueError, match='at least one whole week'):
+        loyverse.aggregate_sales([], END - timedelta(days=3), END)
+
+
+def test_the_sales_window_is_always_whole_weeks(monkeypatch):
+    monkeypatch.setenv('SH_LOYVERSE_SALES_DAYS', '30')
+    assert loyverse.sales_days() == 28
+    monkeypatch.setenv('SH_LOYVERSE_SALES_DAYS', '3')
+    assert loyverse.sales_days() == 7
+    monkeypatch.delenv('SH_LOYVERSE_SALES_DAYS')
+    assert loyverse.sales_days() == 28
+
+
+def test_a_built_catalogue_carries_the_weekly_figures():
+    sold, stats = loyverse.aggregate_sales([receipt(1, '6'), receipt(15, '8')], START, END)
+    catalogue = loyverse.build(list(stores(STORE)), [{'id': 'cat-1', 'name': 'Sausages'}],
+                               [item()], [level(Decimal('3'))], {}, MONEY, sold, stats)
+    row = only(catalogue)
+    assert row['sold_units'] == '14' and row['sold_per_week'] == '3.50'
+    assert row['weekly_units'] == ['6', '0', '8', '0']
+    assert catalogue['sales']['weeks'] == 4 and catalogue['sales']['basis'] == 'receipt_date'
+    assert catalogue['counts']['with_sales'] == 1 and catalogue['counts']['no_sales'] == 0
+
+
+def test_the_scheduled_endpoint_is_invisible_without_the_exact_secret(env, monkeypatch):
+    calls = connect_loyverse(monkeypatch)
+    monkeypatch.setenv('CRON_SECRET', 'scheduler-secret-for-tests')
+    anonymous = TestClient(app)
+    assert anonymous.get('/api/cron/loyverse').status_code == 404
+    assert anonymous.get('/api/cron/loyverse', headers={'authorization': 'Bearer wrong'}).status_code == 404
+    # A signed-in owner is not a substitute for the secret either.
+    assert client().get('/api/cron/loyverse').status_code == 404
+    assert calls == []
+
+
+def test_a_scheduled_read_stores_a_snapshot_under_a_non_login_identity(env, monkeypatch):
+    calls = connect_loyverse(monkeypatch)
+    monkeypatch.setenv('CRON_SECRET', 'scheduler-secret-for-tests')
+    result = TestClient(app).get('/api/cron/loyverse',
+                                 headers={'authorization': 'Bearer scheduler-secret-for-tests'})
+    assert result.status_code == 200 and len(calls) == 1
+    assert result.json()['status'] == 'complete' and result.json()['counts']['items'] == 1
+    owner = client()
+    assert owner.get('/api/loyverse/items').json()['catalogue']['counts']['items'] == 1
+    actions = [row['action'] for row in owner.get('/api/audit').json()]
+    assert 'loyverse.refreshed_on_schedule' in actions
+    with connect() as db:
+        row = db.execute('SELECT * FROM users WHERE email=?', (loyverse.SYSTEM_ACTOR_EMAIL,)).fetchone()
+    assert row['role'] == 'staff' and json.loads(row['stores']) == []
+    # The discarded password means this identity cannot be signed in to.
+    for attempt in ('', 'password', loyverse.SYSTEM_ACTOR_EMAIL):
+        assert TestClient(app, headers=HEADERS).post(
+            '/api/login', json={'email': loyverse.SYSTEM_ACTOR_EMAIL, 'password': attempt or 'x'}
+        ).status_code == 401
+
+
+def test_the_schedule_is_not_blocked_by_the_click_cooldown_but_keeps_the_daily_cap(env, monkeypatch):
+    calls = connect_loyverse(monkeypatch)
+    monkeypatch.setenv('CRON_SECRET', 'scheduler-secret-for-tests')
+    monkeypatch.setenv('SH_LOYVERSE_COOLDOWN_SECONDS', '900')
+    owner = client()
+    assert owner.post('/api/loyverse/refresh').status_code == 200
+    assert owner.post('/api/loyverse/refresh').status_code == 429
+    scheduled = TestClient(app).get('/api/cron/loyverse',
+                                    headers={'authorization': 'Bearer scheduler-secret-for-tests'})
+    assert scheduled.status_code == 200 and len(calls) == 2
+    monkeypatch.setenv('SH_LOYVERSE_DAILY_SYNCS', '2')
+    blocked = TestClient(app).get('/api/cron/loyverse',
+                                  headers={'authorization': 'Bearer scheduler-secret-for-tests'})
+    assert blocked.status_code == 429 and len(calls) == 2
+
+
+def test_a_disconnected_environment_reports_a_skip_rather_than_failing(env, monkeypatch):
+    monkeypatch.delenv('SH_LOYVERSE_ENABLED', raising=False)
+    monkeypatch.setenv('CRON_SECRET', 'scheduler-secret-for-tests')
+    monkeypatch.setattr(loyverse, 'capture', lambda: pytest.fail('Loyverse must not be called'))
+    result = TestClient(app).get('/api/cron/loyverse',
+                                 headers={'authorization': 'Bearer scheduler-secret-for-tests'})
+    assert result.status_code == 200 and result.json()['status'] == 'skipped'

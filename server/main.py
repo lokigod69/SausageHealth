@@ -342,6 +342,18 @@ def loyverse_refresh(user=Depends(current_user)):
     return loyverse.sync(catalogue_reader(user))
 
 
+@app.get('/api/cron/loyverse')
+def loyverse_scheduled(request: Request):
+    """The once-a-day read. Unknown callers get the same 404 as any unknown path."""
+    secret = os.environ.get('CRON_SECRET', '')
+    supplied = request.headers.get('authorization', '')
+    if not secret or not secrets.compare_digest(supplied, 'Bearer ' + secret):
+        raise HTTPException(404, 'Endpoint not found.')
+    if not loyverse.configured():
+        return {'status': 'skipped', 'reason': 'Loyverse is not connected in this environment.'}
+    return loyverse.sync(loyverse.system_actor(), scheduled=True)
+
+
 class FileSpec(BaseModel):
     name: str = Field(min_length=1, max_length=180)
     size: int = Field(ge=1, le=MAX_FILE)
