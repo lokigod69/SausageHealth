@@ -62,7 +62,6 @@ import {
 } from "./api";
 
 import { Items } from "./Items";
-import { Devices } from "./Devices";
 import { Orders } from "./Orders";
 import { PerformancePage } from "./Performance";
 import { Journey, NextStep } from "./Journey";
@@ -183,24 +182,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [pairing, setPairing] = useState(false);
-  const [code, setCode] = useState("");
-  async function redeem(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      await api("/devices/redeem", {
-        method: "POST",
-        body: JSON.stringify({ code }),
-      });
-      onLogin(await api<User>("/me"));
-    } catch (problem) {
-      setError((problem as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -251,32 +233,8 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
         <span className="eyebrow">
           <LockKeyhole size={14} /> STORE OPERATIONS
         </span>
-        <h2>{pairing ? "Pair this tablet" : "Sign in"}</h2>
-        {pairing ? (
-          <form onSubmit={redeem}>
-            <label>
-              Pairing code
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="ABCD EFGHJK"
-                autoCapitalize="characters"
-                autoComplete="off"
-                required
-              />
-            </label>
-            <p className="small-text muted">
-              Ask the technical owner for a code. This tablet then stays signed
-              in until the owner ends it.
-            </p>
-            <ErrorNote message={error} />
-            <button className="button primary" disabled={busy}>
-              {busy ? "Pairing…" : "Pair this tablet"}
-              <ArrowRight size={17} />
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={submit}>
+        <h2>Sign in</h2>
+        <form onSubmit={submit}>
             <label>
               Email
               <input
@@ -305,17 +263,6 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
               <ArrowRight size={17} />
             </button>
           </form>
-        )}
-        <button
-          className="quiet-link"
-          type="button"
-          onClick={() => {
-            setPairing(!pairing);
-            setError("");
-          }}
-        >
-          {pairing ? "Sign in with an account instead" : "Pair a shop tablet"}
-        </button>
         <div className="login-stores">
           {branches.map((branch) => (
             <span key={branch.id}>
@@ -1930,7 +1877,6 @@ export default function App() {
                   </div>
                 </section>
               </div>
-              {user.role === "owner" && <Devices />}
               {user.role === "owner" && (
                 <section className="settings-card owner-settings">
                   <h2>Administration</h2>

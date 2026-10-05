@@ -195,3 +195,22 @@ def test_reset_revokes_sessions_and_old_password(env):
     assert c.get('/api/me').status_code == 401
     assert c.post('/api/login', json={'email': 'owner@test.local', 'password': PASSWORD}).status_code == 401
     assert c.post('/api/login', json={'email': 'owner@test.local', 'password': 'a-new-test-only-password'}).status_code == 200
+
+
+def test_a_session_does_not_expire(env):
+    """The shop runs on one tablet that nobody signs out.
+
+    A twelve-hour session used to log the counter out mid-shift, and the answer
+    to that is not a second credential type: it is a session that stays.
+    """
+    import time
+    from server.db import connect
+    from server.main import SESSION_LIFE
+    c = client()
+    with connect() as db:
+        expires = db.execute('SELECT MAX(expires) AS e FROM sessions').fetchone()['e']
+    years = (expires - time.time()) / (365 * 24 * 3600)
+    assert years > 9, f'a session should outlast a shift by years, got {years:.2f}'
+    assert SESSION_LIFE > 9 * 365 * 24 * 3600
+    # And it is still the only way in: no second credential answers for an account.
+    assert c.get('/api/me').status_code == 200

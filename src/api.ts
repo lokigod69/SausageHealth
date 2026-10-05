@@ -13,19 +13,7 @@ export type User = {
   email: string;
   role: "owner" | "manager" | "staff";
   stores: Store[];
-  /** Set when this session comes from a paired tablet rather than a sign-in. */
-  device?: string;
 };
-export type Device = {
-  id: string;
-  name: string;
-  acts_as: string;
-  created_at: string;
-  last_seen: string | null;
-  revoked: boolean;
-  paired: boolean;
-};
-export type Account = { id: string; name: string; role: string };
 /** A supplier the shop recorded itself, added to the configured ones. */
 export type ShopSupplier = {
   id: string;
