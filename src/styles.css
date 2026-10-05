@@ -4926,3 +4926,47 @@ legend {
   min-height: 76px;
   resize: vertical;
 }
+
+.pick-column {
+  width: 28px;
+}
+.supplier-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+.supplier-cell select {
+  max-width: 150px;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+.supplier-by-hand {
+  color: var(--accent);
+  display: inline-flex;
+}
+.supplier-saving {
+  color: var(--mint);
+}
+.bulk-assign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border: 1px solid #aa87513d;
+  background: #b8852110;
+  border-radius: 11px;
+  font-size: 13px;
+}
+.bulk-assign label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.items-select-all {
+  margin: 0 0 12px;
+  font-size: 12px;
+}

@@ -17,6 +17,7 @@ from starlette.datastructures import UploadFile
 from .db import audit, branches, check_password, connect, data_dir, initialize, now, password_hash
 from . import devices
 from . import item_links
+from . import item_suppliers
 from . import shop_suppliers
 from . import intake_ai
 from . import loyverse
@@ -301,6 +302,27 @@ def shop_supplier_list(user=Depends(current_user)):
 def shop_supplier_record(body: ShopSupplier, user=Depends(current_user)):
     try:
         return shop_suppliers.record(user, body.model_dump())
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
+    except ValueError as problem:
+        raise HTTPException(422, str(problem))
+
+
+class SupplierChoice(BaseModel):
+    """Point one or several products at a supplier; an empty id clears the choice."""
+    variant_ids: list[str] = Field(min_length=1, max_length=item_suppliers.MAX_AT_ONCE)
+    supplier_id: str | None = Field(default=None, max_length=64)
+
+
+@app.get('/api/item-suppliers')
+def item_supplier_list(user=Depends(current_user)):
+    return item_suppliers.rows()
+
+
+@app.put('/api/item-suppliers')
+def item_supplier_choose(body: SupplierChoice, user=Depends(current_user)):
+    try:
+        return item_suppliers.choose(user, body.variant_ids, body.supplier_id)
     except PermissionError as refusal:
         raise HTTPException(403, str(refusal))
     except ValueError as problem:

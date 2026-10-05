@@ -28,6 +28,7 @@ import {
   type User,
 } from "./api";
 import { LinkCell, LinkEditor } from "./ItemLinkEditor";
+import { SupplierCell, type KnownSupplier } from "./SupplierCell";
 
 type Row = {
   item: LoyverseItem;
@@ -243,6 +244,10 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
   const [sorter, setSorter] = useState<Sorter>("name");
   const [shown, setShown] = useState(PAGE);
   const [links, setLinks] = useState<Record<string, ItemLink>>({});
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [assigning, setAssigning] = useState(false);
+  const [bulkTo, setBulkTo] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   // A manager records links because that is the person standing in the aisle;
   // a counter tablet is paired to a manager account, so it can too.
@@ -265,10 +270,54 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
           ),
       )
       .catch(() => {});
+    api<{ variant_id: string; supplier_id: string }[]>("/item-suppliers")
+      .then(
+        (rows) =>
+          live &&
+          setChosen(
+            Object.fromEntries(
+              rows.map((row) => [row.variant_id, row.supplier_id]),
+            ),
+          ),
+      )
+      .catch(() => {});
     return () => {
       live = false;
     };
   }, []);
+
+  /** One product, or every selected one, pointed at a supplier. */
+  async function assign(variantIds: string[], supplierId: string) {
+    setError("");
+    setAssigning(true);
+    try {
+      await api("/item-suppliers", {
+        method: "PUT",
+        body: JSON.stringify({
+          variant_ids: variantIds,
+          supplier_id: supplierId || null,
+        }),
+      });
+      setChosen((current) => {
+        const next = { ...current };
+        for (const id of variantIds) {
+          if (supplierId) next[id] = supplierId;
+          else delete next[id];
+        }
+        return next;
+      });
+      setNotice(
+        variantIds.length === 1
+          ? "Supplier saved. The order view follows on the next refresh."
+          : `${variantIds.length} products assigned. The order view follows on the next refresh.`,
+      );
+      setSelected([]);
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -451,6 +500,8 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
   const currency = catalogue?.currency ?? null;
   const page = filtered.slice(0, shown);
   const showStore = visibleStores.length > 1;
+  // Every supplier the plan knows about, configured or recorded in the app.
+  const knownSuppliers: KnownSupplier[] = catalogue?.suppliers?.known ?? [];
 
   return (
     <>
@@ -646,166 +697,265 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
               <p className="muted small-text">Nothing matches these filters.</p>
             </div>
           ) : (
-            <div className="items-table-wrap">
-              <table className="items-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Item</th>
-                    <th scope="col">SKU</th>
-                    <th scope="col">Category</th>
-                    {showStore && <th scope="col">Store</th>}
-                    <th scope="col" className="numeric">
-                      Price
-                    </th>
-                    <th scope="col" className="numeric">
-                      Cost
-                    </th>
-                    <th scope="col" className="numeric">
-                      Per week
-                    </th>
-                    <th scope="col" className="numeric">
-                      In stock
-                    </th>
-                    <th scope="col" className="numeric">
-                      Optimal
-                    </th>
-                    <th scope="col" className="numeric">
-                      Low at
-                    </th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Shop link</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.map(({ item, variant, store: storeRow, key }) => {
-                    const price = priceLabel(variant, storeRow, currency);
-                    const options = variant.options.filter(Boolean).join(" · ");
-                    return (
-                      <Fragment key={key}>
-                        <tr>
-                          <td data-label="Item">
-                            <span className="item-name">
-                              <strong>{item.name ?? "Unnamed item"}</strong>
-                              {options && <small>{options}</small>}
-                              <span className="item-flags">
-                                {item.sold_by_weight && (
-                                  <span className="tag">By weight</span>
-                                )}
-                                {item.is_composite && (
-                                  <span className="tag">Composite</span>
-                                )}
-                                {!storeRow.settings_present && (
-                                  <span
-                                    className="tag"
-                                    title="Loyverse returned no settings for this variant in this store."
-                                  >
-                                    No store settings
-                                  </span>
-                                )}
+            <>
+              {canEdit && selected.length > 0 && (
+                <div className="bulk-assign">
+                  <strong>{selected.length} selected</strong>
+                  <label>
+                    Assign to
+                    <select
+                      value={bulkTo}
+                      onChange={(event) => setBulkTo(event.target.value)}
+                    >
+                      <option value="">No supplier</option>
+                      {knownSuppliers.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="button secondary"
+                    disabled={assigning}
+                    onClick={() => void assign(selected, bulkTo)}
+                  >
+                    {assigning ? "Assigning…" : "Apply"}
+                  </button>
+                  <button
+                    className="button ghost"
+                    onClick={() => setSelected([])}
+                  >
+                    Clear selection
+                  </button>
+                  <button
+                    className="button ghost"
+                    onClick={() =>
+                      setSelected(page.map((row) => row.variant.variant_id))
+                    }
+                  >
+                    Select all {page.length} shown
+                  </button>
+                </div>
+              )}
+              {canEdit && selected.length === 0 && page.length > 0 && (
+                <button
+                  className="button ghost items-select-all"
+                  onClick={() =>
+                    setSelected(page.map((row) => row.variant.variant_id))
+                  }
+                >
+                  Select all {page.length} shown, to assign a supplier at once
+                </button>
+              )}
+              <div className="items-table-wrap">
+                <table className="items-table">
+                  <thead>
+                    <tr>
+                      {canEdit && (
+                        <th scope="col" className="pick-column">
+                          <span className="visually-hidden">Select</span>
+                        </th>
+                      )}
+                      <th scope="col">Item</th>
+                      <th scope="col">SKU</th>
+                      <th scope="col">Category</th>
+                      {showStore && <th scope="col">Store</th>}
+                      <th scope="col" className="numeric">
+                        Price
+                      </th>
+                      <th scope="col" className="numeric">
+                        Cost
+                      </th>
+                      <th scope="col" className="numeric">
+                        Per week
+                      </th>
+                      <th scope="col" className="numeric">
+                        In stock
+                      </th>
+                      <th scope="col" className="numeric">
+                        Optimal
+                      </th>
+                      <th scope="col" className="numeric">
+                        Low at
+                      </th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Supplier</th>
+                      <th scope="col">Shop link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {page.map(({ item, variant, store: storeRow, key }) => {
+                      const price = priceLabel(variant, storeRow, currency);
+                      const options = variant.options
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <Fragment key={key}>
+                          <tr>
+                            {canEdit && (
+                              <td className="pick-column">
+                                <input
+                                  type="checkbox"
+                                  checked={selected.includes(
+                                    variant.variant_id,
+                                  )}
+                                  onChange={(event) =>
+                                    setSelected((current) =>
+                                      event.target.checked
+                                        ? [...current, variant.variant_id]
+                                        : current.filter(
+                                            (id) => id !== variant.variant_id,
+                                          ),
+                                    )
+                                  }
+                                  aria-label={`Select ${item.name ?? "this item"}`}
+                                />
+                              </td>
+                            )}
+                            <td data-label="Item">
+                              <span className="item-name">
+                                <strong>{item.name ?? "Unnamed item"}</strong>
+                                {options && <small>{options}</small>}
+                                <span className="item-flags">
+                                  {item.sold_by_weight && (
+                                    <span className="tag">By weight</span>
+                                  )}
+                                  {item.is_composite && (
+                                    <span className="tag">Composite</span>
+                                  )}
+                                  {!storeRow.settings_present && (
+                                    <span
+                                      className="tag"
+                                      title="Loyverse returned no settings for this variant in this store."
+                                    >
+                                      No store settings
+                                    </span>
+                                  )}
+                                </span>
                               </span>
-                            </span>
-                          </td>
-                          <td data-label="SKU">
-                            <span className="mono">{variant.sku ?? "—"}</span>
-                            {variant.barcode && (
-                              <small className="mono muted">
-                                {variant.barcode}
-                              </small>
-                            )}
-                          </td>
-                          <td data-label="Category">
-                            {item.category_name ?? (
-                              <span className="unknown-value">No category</span>
-                            )}
-                          </td>
-                          {showStore && (
-                            <td data-label="Store">
-                              {storeRow.store_name ?? "Unnamed store"}
-                              {!storeRow.workspace_store && (
-                                <small className="unknown-value">
-                                  Unmapped
+                            </td>
+                            <td data-label="SKU">
+                              <span className="mono">{variant.sku ?? "—"}</span>
+                              {variant.barcode && (
+                                <small className="mono muted">
+                                  {variant.barcode}
                                 </small>
                               )}
                             </td>
-                          )}
-                          <td
-                            data-label="Price"
-                            className="numeric"
-                            title={price.hint}
-                          >
-                            {price.text}
-                          </td>
-                          <td data-label="Cost" className="numeric">
-                            {variant.cost === null ? (
-                              <span className="unknown-value">
-                                Not recorded
-                              </span>
-                            ) : (
-                              money(variant.cost, currency)
+                            <td data-label="Category">
+                              {item.category_name ?? (
+                                <span className="unknown-value">
+                                  No category
+                                </span>
+                              )}
+                            </td>
+                            {showStore && (
+                              <td data-label="Store">
+                                {storeRow.store_name ?? "Unnamed store"}
+                                {!storeRow.workspace_store && (
+                                  <small className="unknown-value">
+                                    Unmapped
+                                  </small>
+                                )}
+                              </td>
                             )}
-                          </td>
-                          <td data-label="Per week" className="numeric">
-                            <WeeklyCell
-                              store={storeRow}
-                              sales={catalogue.sales}
-                            />
-                          </td>
-                          <td data-label="In stock" className="numeric">
-                            <StockCell store={storeRow} />
-                          </td>
-                          <td data-label="Optimal" className="numeric">
-                            {storeRow.optimal_stock === null ? (
-                              <span className="unknown-value">Not set</span>
-                            ) : (
-                              quantity(storeRow.optimal_stock)
-                            )}
-                          </td>
-                          <td data-label="Low at" className="numeric">
-                            {storeRow.low_stock === null ? (
-                              <span className="unknown-value">Not set</span>
-                            ) : (
-                              quantity(storeRow.low_stock)
-                            )}
-                          </td>
-                          <td data-label="Status">
-                            <RowStatus store={storeRow} />
-                          </td>
-                          <td data-label="Shop link">
-                            <LinkCell
-                              link={links[variant.variant_id]}
-                              canEdit={canEdit}
-                              onEdit={() => setEditing(variant.variant_id)}
-                            />
-                          </td>
-                        </tr>
-                        {editing === variant.variant_id && (
-                          <tr className="link-editor-row">
-                            <td colSpan={showStore ? 12 : 11}>
-                              <LinkEditor
-                                variantId={variant.variant_id}
-                                sku={variant.sku}
-                                itemName={item.name}
+                            <td
+                              data-label="Price"
+                              className="numeric"
+                              title={price.hint}
+                            >
+                              {price.text}
+                            </td>
+                            <td data-label="Cost" className="numeric">
+                              {variant.cost === null ? (
+                                <span className="unknown-value">
+                                  Not recorded
+                                </span>
+                              ) : (
+                                money(variant.cost, currency)
+                              )}
+                            </td>
+                            <td data-label="Per week" className="numeric">
+                              <WeeklyCell
+                                store={storeRow}
+                                sales={catalogue.sales}
+                              />
+                            </td>
+                            <td data-label="In stock" className="numeric">
+                              <StockCell store={storeRow} />
+                            </td>
+                            <td data-label="Optimal" className="numeric">
+                              {storeRow.optimal_stock === null ? (
+                                <span className="unknown-value">Not set</span>
+                              ) : (
+                                quantity(storeRow.optimal_stock)
+                              )}
+                            </td>
+                            <td data-label="Low at" className="numeric">
+                              {storeRow.low_stock === null ? (
+                                <span className="unknown-value">Not set</span>
+                              ) : (
+                                quantity(storeRow.low_stock)
+                              )}
+                            </td>
+                            <td data-label="Status">
+                              <RowStatus store={storeRow} />
+                            </td>
+                            <td data-label="Supplier">
+                              <SupplierCell
+                                reorder={storeRow.reorder}
+                                chosen={chosen[variant.variant_id]}
+                                known={knownSuppliers}
+                                canEdit={canEdit}
+                                pending={assigning}
+                                onChoose={(supplierId) =>
+                                  void assign([variant.variant_id], supplierId)
+                                }
+                              />
+                            </td>
+                            <td data-label="Shop link">
+                              <LinkCell
                                 link={links[variant.variant_id]}
-                                onCancel={() => setEditing(null)}
-                                onSaved={(saved) => {
-                                  setLinks((current) => {
-                                    const next = { ...current };
-                                    if (saved) next[variant.variant_id] = saved;
-                                    else delete next[variant.variant_id];
-                                    return next;
-                                  });
-                                  setEditing(null);
-                                }}
+                                canEdit={canEdit}
+                                onEdit={() => setEditing(variant.variant_id)}
                               />
                             </td>
                           </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {editing === variant.variant_id && (
+                            <tr className="link-editor-row">
+                              <td
+                                colSpan={
+                                  (showStore ? 13 : 12) + (canEdit ? 1 : 0)
+                                }
+                              >
+                                <LinkEditor
+                                  variantId={variant.variant_id}
+                                  sku={variant.sku}
+                                  itemName={item.name}
+                                  link={links[variant.variant_id]}
+                                  onCancel={() => setEditing(null)}
+                                  onSaved={(saved) => {
+                                    setLinks((current) => {
+                                      const next = { ...current };
+                                      if (saved)
+                                        next[variant.variant_id] = saved;
+                                      else delete next[variant.variant_id];
+                                      return next;
+                                    });
+                                    setEditing(null);
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
           {filtered.length > page.length && (
             <button

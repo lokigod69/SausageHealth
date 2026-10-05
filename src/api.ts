@@ -327,6 +327,8 @@ export type Reorder = {
   arrives: string | null;
   order_by: string | null;
   status: "order_now" | "out_of_stock" | "ok" | "unknown";
+  /** True when somebody picked this supplier for this product by hand. */
+  by_hand?: boolean;
   days_of_cover: number | null;
   alternative_name?: string;
   alternative_lead_days?: { min: number; max: number };

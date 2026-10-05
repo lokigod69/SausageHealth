@@ -170,6 +170,10 @@ def initialize():
           match_names TEXT, match_categories TEXT,
           updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
         );
+        CREATE TABLE IF NOT EXISTS item_suppliers (
+          variant_id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL,
+          updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
+        );
         PRAGMA user_version=1;
         ''')
         add_column(db, 'item_links', 'lazada_url', 'TEXT')

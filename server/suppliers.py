@@ -271,18 +271,25 @@ def plan(supplier, today, cover_days):
     return result
 
 
-def assign(items, today, config=None, stored=None):
+def assign(items, today, config=None, stored=None, chosen=None):
     """Supplier and reorder plan per variant and store, plus what nothing matched.
 
     `stored` is the shop's own recorded buying links, keyed by variant id.
+    `chosen` is a supplier picked for one variant by hand, also keyed by variant
+    id. A choice beats every rule: a rule is a guess from a name, and somebody
+    in the shop looking at the product knows better.
     """
     config = config if config is not None else registry()
     if not config:
         return None
     assignments, unassigned = {}, []
     for item in items:
-        rule = match(config['rules'], item.get('name'), item.get('category_name'))
+        fallback = match(config['rules'], item.get('name'), item.get('category_name'))
         for variant in item.get('variants') or []:
+            picked = (chosen or {}).get(variant['variant_id'])
+            rule = fallback
+            if picked and picked in config['suppliers']:
+                rule = {'supplier': picked, 'alternative': None, 'by_hand': True}
             for row in variant.get('stores') or []:
                 key = (variant['variant_id'], row['store_id'])
                 if not rule:
@@ -291,6 +298,7 @@ def assign(items, today, config=None, stored=None):
                     continue
                 supplier = config['suppliers'][rule['supplier']]
                 entry = plan(supplier, today, cover(row))
+                entry['by_hand'] = bool(rule.get('by_hand'))
                 if rule['alternative']:
                     other = config['suppliers'][rule['alternative']]
                     entry['alternative_name'] = other['name']
