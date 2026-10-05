@@ -240,6 +240,7 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
   const [query, setQuery] = useState("");
   const [store, setStore] = useState("all");
   const [category, setCategory] = useState("all");
+  const [supplier, setSupplier] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sorter, setSorter] = useState<Sorter>("name");
   const [shown, setShown] = useState(PAGE);
@@ -376,6 +377,13 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
       if (store !== "all" && row.store.store_id !== store) return false;
       if (category !== "all" && (row.item.category_id ?? "none") !== category)
         return false;
+      if (supplier !== "all") {
+        const theirs =
+          chosen[row.variant.variant_id] ??
+          row.store.reorder?.supplier_id ??
+          "none";
+        if (theirs !== supplier) return false;
+      }
       if (status === "below_optimal" && row.store.below_optimal === null)
         return false;
       if (status === "low_stock" && !row.store.low_stock_alert) return false;
@@ -431,7 +439,7 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
         return left - right;
       });
     return ordered;
-  }, [rows, query, store, category, status, sorter]);
+  }, [rows, query, store, category, supplier, chosen, status, sorter]);
 
   useEffect(
     () => setShown(PAGE),
@@ -664,6 +672,19 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                 </option>
               ))}
               <option value="none">No category</option>
+            </select>
+            <select
+              value={supplier}
+              onChange={(event) => setSupplier(event.target.value)}
+              aria-label="Filter by supplier"
+            >
+              <option value="all">All suppliers</option>
+              {knownSuppliers.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.name}
+                </option>
+              ))}
+              <option value="none">No supplier</option>
             </select>
             <select
               value={status}
