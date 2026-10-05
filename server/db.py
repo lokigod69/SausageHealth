@@ -9,6 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def branches():
+    """Branch ids this workspace files records against.
+
+    One branch today. Adding another means setting SH_BRANCHES here and adding it
+    to the frontend list; a brand new id also needs the entries CHECK constraint
+    widened, which `initialize` does not do on its own.
+    """
+    raw = os.environ.get('SH_BRANCHES', 'sausage')
+    found = tuple(part.strip() for part in raw.split(',') if part.strip())
+    if not found:
+        raise ValueError('SH_BRANCHES must name at least one branch.')
+    return found
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -153,8 +167,8 @@ def check_password(password, stored):
 
 
 def add_user(email, name, role, stores, password):
-    if role not in ('owner', 'manager', 'staff') or not stores or not set(stores) <= {'sausage', 'health'}:
-        raise ValueError('Choose a valid role and at least one store.')
+    if role not in ('owner', 'manager', 'staff') or not stores or not set(stores) <= set(branches()):
+        raise ValueError('Choose a valid role and at least one branch.')
     if len(password) < 12 or len(password) > 256:
         raise ValueError('Use a password of 12–256 characters.')
     if not email.strip() or not name.strip():

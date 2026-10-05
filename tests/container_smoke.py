@@ -52,13 +52,13 @@ def main(image):
             raise AssertionError('Container did not become healthy')
 
         ready()
-        assert b'Sausage Health' in request('/')[0]
+        assert b'SOS' in request('/')[0]
         request('/api/entries', expected=401)
         request('/api/export', expected=401)
         request('/api/login', b'{}', {'Content-Type': 'application/json', 'Origin': 'https://wrong.example'}, expected=403)
         assert docker('exec', container, 'id', '-u') == '10001'
         docker('exec', container, 'python', '-c',
-               'from server.db import add_user; add_user("smoke@example.test", "Synthetic owner", "owner", ["sausage", "health"], ' + repr(password) + ')')
+               'from server.db import add_user; add_user("smoke@example.test", "Synthetic owner", "owner", ["sausage"], ' + repr(password) + ')')
         auth = {'Origin': origin, 'X-SH-Request': '1', 'Content-Type': 'application/json'}
         _, response_headers = request('/api/login', json.dumps({'email': 'smoke@example.test', 'password': password}).encode(), auth)
         cookie = response_headers['Set-Cookie']
@@ -68,7 +68,7 @@ def main(image):
         # real clients must use the HTTPS proxy before sending a Secure cookie.
         headers = {**auth, 'Cookie': cookie.split(';', 1)[0]}
         boundary = 'smoke-' + suffix
-        fields = {'store': 'health', 'category': 'other', 'title': 'SYNTHETIC CONTAINER CHECK',
+        fields = {'store': 'sausage', 'category': 'other', 'title': 'SYNTHETIC CONTAINER CHECK',
                   'notes': 'No business facts.', 'occurred_on': '2026-09-09', 'request_key': 'smoke-check-' + suffix}
         parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n' for key, value in fields.items()]
         original = b'SYNTHETIC ORIGINAL ONLY\r\n'

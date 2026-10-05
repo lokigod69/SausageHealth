@@ -34,6 +34,8 @@ def env(tmp_path, monkeypatch, request):
             db.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
         monkeypatch.setenv('SH_DATABASE_URL', url)
         monkeypatch.setenv('SH_DATABASE_SCHEMA', schema)
+    # Two branches, so cross-branch isolation still has a subject to test.
+    monkeypatch.setenv('SH_BRANCHES', 'sausage,health')
     monkeypatch.setenv('SH_DATA_DIR', str(tmp_path / 'data'))
     monkeypatch.setenv('SH_ENV', 'test')
     monkeypatch.setenv('SH_ORIGIN', HEADERS['origin'])

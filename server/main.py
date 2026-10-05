@@ -14,12 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
-from .db import audit, check_password, connect, data_dir, initialize, now, password_hash
+from .db import audit, branches, check_password, connect, data_dir, initialize, now, password_hash
 from . import intake_ai
 from . import loyverse
 from . import storage
 
 CATEGORIES = {'sales', 'stock', 'suppliers', 'expenses', 'team', 'walkthrough', 'other'}
+# A record already filed against a retired store stays readable, but nothing new
+# can be filed against one: the branch list decides what may be chosen.
 MAX_BODY = 105 * 1024 * 1024
 MAX_FILE = 50 * 1024 * 1024
 ALLOWED_EXT = {'.txt', '.csv', '.tsv', '.xlsx', '.xls', '.pdf', '.png', '.jpg', '.jpeg',
@@ -99,7 +101,7 @@ def current_user(request: Request):
 
 
 def store_allowed(user, store):
-    return set(('sausage', 'health') if store == 'both' else (store,)) <= set(user['stores'])
+    return set(branches() if store == 'both' else (store,)) <= set(user['stores'])
 
 
 def can_read(user, entry):
@@ -197,7 +199,7 @@ async def create_entry(request: Request, user=Depends(current_user)):
         occurred_on = str(form.get('occurred_on', ''))
         request_key = str(form.get('request_key', ''))
         files = [f for f in form.getlist('files') if isinstance(f, UploadFile) and f.filename]
-        if store not in {'sausage', 'health', 'both'} or not store_allowed(user, store):
+        if store not in set(branches()) | {'both'} or not store_allowed(user, store):
             raise HTTPException(403, 'Choose a store assigned to your account.')
         if category not in CATEGORIES or not 2 <= len(title) <= 160 or len(notes) > 30000:
             raise HTTPException(422, 'Choose a category, add a title (2–160 characters), and keep notes under 30,000 characters.')
@@ -374,7 +376,7 @@ class Submission(BaseModel):
 def upload_intent(body: Submission, user=Depends(current_user)):
     if not storage.cloud_enabled():
         raise HTTPException(404, 'Endpoint not found.')
-    if body.store not in {'sausage', 'health', 'both'} or not store_allowed(user, body.store):
+    if body.store not in set(branches()) | {'both'} or not store_allowed(user, body.store):
         raise HTTPException(403, 'Choose a store assigned to your account.')
     if body.category not in CATEGORIES or len(body.title.strip()) < 2 or (not body.notes.strip() and not body.files):
         raise HTTPException(422, 'Add a title and a note or file.')

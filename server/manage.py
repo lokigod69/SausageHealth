@@ -11,7 +11,7 @@ import tempfile
 from contextlib import closing
 import os
 
-from .db import add_user, connect, data_dir, initialize, reset_password
+from .db import add_user, branches, connect, data_dir, initialize, reset_password
 
 
 def backup(destination):
@@ -48,7 +48,8 @@ def main():
     add.add_argument('--email', required=True)
     add.add_argument('--name', required=True)
     add.add_argument('--role', choices=['owner', 'manager', 'staff'], required=True)
-    add.add_argument('--stores', nargs='+', choices=['sausage', 'health'], default=['sausage', 'health'])
+    add.add_argument('--stores', nargs='+', default=None,
+                     help='Branch ids; defaults to every configured branch.')
     sub.add_parser('init')
     sub.add_parser('local-preview')
     reset = sub.add_parser('reset-password')
@@ -63,7 +64,7 @@ def main():
         if password != getpass.getpass('Confirm password: '):
             raise ValueError('Passwords did not match.')
         if args.command == 'add-user':
-            add_user(args.email, args.name, args.role, args.stores, password)
+            add_user(args.email, args.name, args.role, args.stores or list(branches()), password)
             print('Account created for ' + args.name)
         else:
             reset_password(args.email, password)
@@ -83,7 +84,7 @@ def main():
             print('Preview account already exists. Credentials remain in .data/preview-login.json.')
             return
         password = secrets.token_urlsafe(24)
-        add_user('owner@sausagehealth.local', 'Michael', 'owner', ['sausage', 'health'], password)
+        add_user('owner@sausagehealth.local', 'Michael', 'owner', list(branches()), password)
         credential.write_text(json.dumps({'email': 'owner@sausagehealth.local', 'password': password}), encoding='utf-8')
         credential.chmod(0o600)
         print('Local preview account created. Credentials saved privately in .data/preview-login.json.')
