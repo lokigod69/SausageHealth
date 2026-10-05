@@ -3,7 +3,6 @@ import {
   Check,
   Compass,
   Flag,
-  Leaf,
   LockKeyhole,
   MapPin,
   Receipt,
@@ -97,11 +96,7 @@ export function NextStep({
               .filter((t) => t.category === "sales")
               .map((t) => (
                 <div key={t.store}>
-                  {t.store === "health" ? (
-                    <Leaf size={17} />
-                  ) : (
-                    <Receipt size={17} />
-                  )}
+                  <Receipt size={17} />
                   <span>
                     {storeNames[t.store]}
                     <small>

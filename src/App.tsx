@@ -53,6 +53,7 @@ import {
   fileSize,
   manilaDate,
   prompts,
+  branches,
   storeNames,
   type Category,
   type Entry,
@@ -83,7 +84,7 @@ const navItems = [
     icon: TrendingUp,
     roles: ["owner", "manager"],
   },
-  { id: "stores", label: "Stores", icon: StoreIcon },
+  { id: "stores", label: "Branches", icon: StoreIcon },
   { id: "roadmap", label: "Roadmap", icon: Map },
   { id: "team", label: "AI tools", icon: Sparkles },
 ] as const;
@@ -152,7 +153,7 @@ function Modal({
       }}
     >
       <div className="modal-top">
-        <span className="eyebrow">SAUSAGE HEALTH / {title}</span>
+        <span className="eyebrow">SOS / {title}</span>
         <button
           type="button"
           className="icon-button"
@@ -196,15 +197,19 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
         <div className="brand">
           <PixelMark />
           <span>
-            sausage<span className="brand-light">health</span>
+            <span className="brand-word">
+              S<span className="brand-accent">O</span>S
+            </span>
           </span>
         </div>
         <div className="login-heading">
-          <span className="eyebrow">PANGLAO, PHILIPPINES</span>
+          <span className="eyebrow">THE SAUSAGE GUY · PANGLAO</span>
           <h1>
-            Sausage
+            Store
             <br />
-            Health
+            Operating
+            <br />
+            System
           </h1>
         </div>
         <img
@@ -250,12 +255,11 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
           </button>
         </form>
         <div className="login-stores">
-          <span>
-            <StoreIcon size={16} /> The Sausage Guy
-          </span>
-          <span>
-            <Leaf size={16} /> Natural Mind Health
-          </span>
+          {branches.map((branch) => (
+            <span key={branch.id}>
+              <StoreIcon size={16} /> {branch.name}
+            </span>
+          ))}
         </div>
       </section>
     </main>
@@ -965,7 +969,9 @@ export default function App() {
   }
   useEffect(() => {
     if (user) {
-      setScope(user.stores.length === 2 ? "both" : user.stores[0]);
+      // A single branch is simply selected; no "all branches" default.
+      const open = branches.filter((branch) => user.stores.includes(branch.id));
+      setScope(open.length === 1 ? open[0].id : "both");
       void refresh();
       api<typeof system>("/system")
         .then(setSystem)
@@ -1028,6 +1034,9 @@ export default function App() {
       </div>
     );
   if (!user) return <Login onLogin={setUser} />;
+  const openBranches = branches.filter((branch) =>
+    user.stores.includes(branch.id),
+  );
   const scoped = entries.filter(
     (e) => scope === "both" || e.store === scope || e.store === "both",
   );
@@ -1052,7 +1061,7 @@ export default function App() {
           collection: "Collection",
           items: "Items",
           performance: "Performance",
-          stores: "Stores",
+          stores: "Branches",
           roadmap: "Roadmap",
           team: "AI tools",
           settings: "Settings",
@@ -1073,12 +1082,14 @@ export default function App() {
         <button
           className="brand"
           onClick={() => navigate("overview")}
-          aria-label="Sausage Health home"
+          aria-label="SOS home"
         >
           <PixelMark />
           <span>
-            sausage<span className="brand-light">health</span>
-            <small>STORE OPERATIONS</small>
+            <span className="brand-word">
+              S<span className="brand-accent">O</span>S
+            </span>
+            <small>STORE OPERATING SYSTEM</small>
           </span>
         </button>
         <div className="workspace-label">
@@ -1198,27 +1209,26 @@ export default function App() {
             <div>
               <p className="eyebrow">
                 {page === "overview"
-                  ? "SAUSAGE HEALTH"
-                  : "SAUSAGE HEALTH / WORKSPACE"}
+                  ? "THE SAUSAGE GUY"
+                  : "THE SAUSAGE GUY / SOS"}
               </p>
               <h1>{title}</h1>
             </div>
             <label className="scope-select">
-              <span className="visually-hidden">Filter by store</span>
+              <span className="visually-hidden">Choose a branch</span>
               <span className="store-symbols">
-                <StoreIcon size={14} />
-                <Leaf size={14} />
+                <MapPin size={14} />
               </span>
               <select
                 value={scope}
                 onChange={(e) => setScope(e.target.value as Store)}
               >
-                {user.stores.length === 2 && (
-                  <option value="both">Both stores</option>
+                {openBranches.length > 1 && (
+                  <option value="both">All branches</option>
                 )}
-                {user.stores.map((s) => (
-                  <option key={s} value={s}>
-                    {storeNames[s]}
+                {openBranches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
                   </option>
                 ))}
               </select>
@@ -1567,81 +1577,65 @@ export default function App() {
           {page === "stores" && (
             <>
               <p className="page-intro">
-                Different strengths. A shared foundation. Store details below
-                come from the founder’s brief and still need Moritz’s
-                confirmation.
+                One shop, one location so far. Everything in SOS is filed
+                against a branch, so another one can be added without rebuilding
+                anything.
               </p>
               <div className="stores-grid">
-                {(["sausage", "health"] as const)
-                  .filter(
-                    (s) =>
-                      user.stores.includes(s) &&
-                      (scope === "both" || scope === s),
-                  )
-                  .map((s) => (
-                    <article className={`store-card ${s}`} key={s}>
+                {openBranches
+                  .filter(() => scope === "both" || true)
+                  .map((branch) => (
+                    <article className="store-card sausage" key={branch.id}>
                       <div className="store-card-top">
                         <span className="large-icon">
-                          {s === "sausage" ? (
-                            <StoreIcon size={29} />
-                          ) : (
-                            <Leaf size={29} />
-                          )}
+                          <StoreIcon size={29} />
                         </span>
-                        <Tag>Details to confirm</Tag>
+                        <Tag tone="green">Open</Tag>
                       </div>
-                      <span className="eyebrow">
-                        {s === "sausage"
-                          ? "THE FREEZER & DELI"
-                          : "HEALTH FOODS"}
-                      </span>
-                      <h2>{storeNames[s]}</h2>
+                      <span className="eyebrow">THE FREEZER &amp; DELI</span>
+                      <h2>{branch.name}</h2>
                       <p>
-                        {s === "sausage"
-                          ? "Sausages, steaks, bacon, cold cuts, fish, frozen vegetables, and a few good extras."
-                          : "Cacao, house-made kefir and yogurt, honey, nuts, supplements, goat milk, eggs, and more."}
+                        Sausages, steaks, bacon, cold cuts, fish, frozen
+                        vegetables, and a few good extras.
                       </p>
                       <div className="store-facts">
                         <span>
                           <MapPin size={15} />
-                          {s === "sausage"
-                            ? "Panglao, Bohol"
-                            : "Bil-isan area, Panglao · address to confirm"}
+                          {branch.where}
                         </span>
                         <span>
                           <BookOpen size={15} />
                           {
                             entries.filter(
-                              (e) => e.store === s || e.store === "both",
+                              (e) =>
+                                e.store === branch.id || e.store === "both",
                             ).length
                           }{" "}
                           updates collected
                         </span>
                         <span>
-                          <LockKeyhole size={15} />
-                          Loyverse connection pending
+                          <Package size={15} />
+                          Loyverse catalogue connected
                         </span>
                       </div>
                       <button
                         className="button secondary"
                         onClick={() => {
-                          setScope(s);
+                          setScope(branch.id);
                           navigate("collection");
                         }}
                       >
-                        Open store collection
+                        Open branch collection
                         <ArrowRight size={16} />
                       </button>
-                      {s === "sausage" && (
-                        <a
-                          className="quiet-link"
-                          href="https://www.thesausageguy.shop/panglao"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Visit the customer website ↗
-                        </a>
-                      )}
+                      <a
+                        className="quiet-link"
+                        href="https://www.thesausageguy.shop/panglao"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Visit the customer website ↗
+                      </a>
                     </article>
                   ))}
               </div>
@@ -1650,8 +1644,11 @@ export default function App() {
                   <Sprout size={25} />
                 </span>
                 <div>
-                  <h3>Room for what comes next.</h3>
-                  <p>Azure Sky and future locations are awaiting details.</p>
+                  <h3>Room for the next branch.</h3>
+                  <p>
+                    A new location becomes selectable at the top right once it
+                    is added.
+                  </p>
                 </div>
                 <button
                   className="quiet-link"
@@ -1911,7 +1908,7 @@ export default function App() {
               Panglao, Philippines
             </span>
             <span>
-              SAUSAGE HEALTH <i /> FOUNDATION 0.1
+              SOS <i /> STORE OPERATING SYSTEM
             </span>
           </footer>
         </main>

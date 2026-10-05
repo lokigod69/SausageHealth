@@ -15,7 +15,6 @@ import {
   money,
   quantity,
   stockStateNames,
-  storeNames,
   timeLabel,
   type LoyverseCatalogue,
   type LoyverseCurrency,
@@ -499,10 +498,10 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                 {catalogue.counts.stores - catalogue.counts.mapped_stores === 1
                   ? " is"
                   : "s are"}{" "}
-                not mapped to {storeNames.sausage} or {storeNames.health}. Their
-                rows are shown to you unattributed. Confirm which shop each one
-                is, then set <code>SH_LOYVERSE_STORE_MAP</code> on the API
-                server and restart it.
+                not mapped to a branch. Their rows are shown to you
+                unattributed. Confirm which shop each one is, then set{" "}
+                <code>SH_LOYVERSE_STORE_MAP</code> on the API server and restart
+                it.
               </p>
               <ul className="store-id-list">
                 {catalogue.stores
@@ -514,8 +513,8 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                   ))}
               </ul>
               <p className="muted">
-                Replace each value with <code>"sausage"</code> or{" "}
-                <code>"health"</code>, and drop any store that is neither:
+                Replace each value with the branch id it belongs to, and drop
+                any store that is not a branch of this shop:
               </p>
               <code className="map-sample">{unmappedSample(catalogue)}</code>
             </div>

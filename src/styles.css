@@ -4618,3 +4618,14 @@ legend {
   color: var(--muted);
   border-color: var(--line);
 }
+
+.brand-word {
+  display: block;
+  letter-spacing: 0.06em;
+}
+/* brand-light is a block, which stacked the three letters. The wordmark needs
+   an inline accent instead. */
+.brand-accent {
+  display: inline;
+  color: var(--accent);
+}

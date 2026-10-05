@@ -103,7 +103,7 @@ export function starterTasks(
   const visible = entries.filter(
     (e) =>
       (e.store === "both"
-        ? user.stores.includes("sausage") && user.stores.includes("health")
+        ? user.stores.every((branch) => user.stores.includes(branch))
         : user.stores.includes(e.store)) &&
       (user.role !== "staff" || e.author_id === user.id),
   );

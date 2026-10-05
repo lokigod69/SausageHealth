@@ -151,10 +151,18 @@ export async function submitEntry(form: FormData): Promise<Entry> {
   });
 }
 
+/** Branches of The Sausage Guy. Add an entry here to offer another location. */
+export const branches: {
+  id: Exclude<Store, "both">;
+  name: string;
+  where: string;
+}[] = [{ id: "sausage", name: "Panglao", where: "Panglao, Bohol" }];
 export const storeNames: Record<Store, string> = {
-  sausage: "The Sausage Guy",
-  health: "Natural Mind Health",
-  both: "Both stores",
+  sausage: "Panglao",
+  // Retained only so a record created before the change still renders. It is
+  // never offered as a choice; nothing new can be filed against it.
+  health: "Former second store",
+  both: "All branches",
 };
 export const categoryNames: Record<Category, string> = {
   sales: "Daily sales",
