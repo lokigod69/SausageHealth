@@ -192,3 +192,68 @@ Exact next action: the owner records the three identified marketplace links in
 the Items page and confirms they appear, which also verifies the Postgres table.
 Then the `sos` CNAME at Porkbun before `SH_ORIGIN` moves; that name still only
 catches the wildcard. Push notifications remain unbuilt.
+
+## 5 October 2026 · three buying slots, and suppliers the shop can add
+
+The owner approved the three-slot shape and it shipped: a marketplace slot, a
+second marketplace slot and a third the shop names itself, plus the note. The
+two named slots are checked against their own hosts, because a page from the
+wrong marketplace pasted into the first slot would be labelled wrongly on the
+shelf and would silently miss the buying ceiling, which follows the host rather
+than the slot. The first filled slot is the page to open; the rest are offered
+as other sources. `item_links` had shipped an hour earlier without the second
+column, so `db.add_column` was added: `CREATE TABLE IF NOT EXISTS` never alters
+a table that already exists, and neither backend branch swallows an error.
+
+The owner then named a supplier whose whole range needed ordering by message.
+Measured before building anything: four of its five products matched no rule at
+all, so they received no reorder advice and no message button, and the fifth
+matched a category rule meant for a marketplace and was offered a search link
+to the wrong place. Suppliers and their contact numbers lived in the same
+hosting variable that had already blocked the owner once.
+
+So suppliers can now be added in the app, **on top of** configuration rather
+than instead of it. The configured suppliers stay in the encrypted variable,
+which is where commercially sensitive rhythms and lead times belong, and
+nothing already there stopped working. A rule recorded in the app is tried
+first, so a configured mapping that is wrong can be corrected without a deploy,
+and a record reusing a configured id replaces it. Validation is not duplicated:
+`registry()` was split so a record is turned back into the configuration shape
+and handed to `suppliers.parse`, meaning a lead time typed on a tablet is
+checked exactly as strictly as one pasted into the host. A number is normalised
+rather than only validated, because a wa.me link needs bare digits and storing
+the raw text would leave the record and the reorder plan disagreeing about the
+same number. With a supplier recorded, the order view's existing WhatsApp,
+Viber and Messenger buttons work for it, carrying the same prefilled message --
+and still without the buying ceiling in that text.
+
+An owner or a manager may record links and suppliers, which includes a paired
+counter tablet; a shop-floor account may not. Every write is audited.
+
+Runtime is now **0b5f89c**, deployment **dpl_DPwVCzxaYPEgN7CucYbQVn4LtqXB**, at
+the ops alias, through **8cd1def** / **dpl_55WchsvXQen5ogWtgwpS6hFCpiTw**.
+Source `0b5f89c` passed [CI run 37259562816](https://github.com/lokigod69/SausageHealth/actions/runs/37259562816):
+304 backend tests with 2 intentional skips, the Node suite, frontend and Docker
+builds and container smoke. 216 backend and 17 Node tests pass locally with 90
+intentional skips. Verified signed out on the live host: the page returns 200,
+`/api/health` is ok, `/api/shop-suppliers` and `/api/item-links` return 401 so
+the routes exist and are authenticated, and the published bundle carries both
+new forms.
+
+**Not verified, and not claimed:** no signed-in read has been made from here, so
+the first proof that `item_links`, its added column and `shop_suppliers` exist
+in Neon is the owner opening those pages. The Postgres variants of both are
+green in CI against a Postgres container, which is evidence for the schema but
+not for that database.
+
+A real supplier number was caught in a staged test file and replaced with a
+synthetic one before any commit. No real supplier name or number is in this
+repository; the owner types the number into the app, where it stays in the
+private database.
+
+Exact next action: the owner records the supplier and its products in the order
+view, and the three marketplace links in the Items page, which also produces
+the Neon evidence above. Then the `sos` CNAME at Porkbun before `SH_ORIGIN`
+moves; that name still only catches the wildcard. Push notifications remain
+unbuilt, and both the ceiling and the contacts already travel on the reorder row
+a notification would read.
