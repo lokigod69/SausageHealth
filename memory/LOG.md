@@ -141,3 +141,54 @@ reorder row a notification would read. Two live catalogue facts remain for the
 owner to decide: one two-pack sells at a 6.8% margin, and the superseded
 200g-pack ham and forest ham rows are still active and for sale alongside their
 replacements.
+
+## 5 October 2026 · buying links belong to the shop, not to configuration
+
+The owner could not record three marketplace links. The reason was a design
+mistake of mine: the links were read from `SH_LOYVERSE_SUPPLIERS`, so every
+correction needed a hosting login, a secret whose value cannot be read back and
+a redeploy. The owner had no access to that account at the time and was right
+to object. These links are not secrets -- each is a public product page -- and
+the people who know which page is right are the people in the shop.
+
+They now live in an `item_links` table and are edited in the Items page: a
+`Shop link` column per row, a form that opens underneath it, paste and save.
+A recorded link takes precedence over a configured one, because the shop can
+correct its own record in seconds while configuration needs a deploy; the
+configured form still works and is still tested, so nothing already deployed
+stopped working. A link is recorded against one variant rather than one item,
+since a single item can hold two flavours bought from two different pages.
+
+An owner or a manager may record one, which includes a paired counter tablet
+because that is the person standing in the aisle; a shop-floor account may not.
+Every write is audited. Only plain `https://` is accepted, since the value ends
+up in an `href` a person will click, and clearing every field removes the
+record rather than keeping an empty one that readers could disagree about.
+Building a catalogue stays free of the database: the recorded links are handed
+to `build()` by the fetch path rather than read inside it, which is what keeps
+the catalogue tests independent of a database.
+
+Runtime is now **a75209d**, deployment **dpl_CmZw2hffD5SPs7uoAAxYFL73g6b2**, at
+the ops alias. 190 backend tests and 17 Node tests pass locally with 65
+intentional skips, and the frontend build is clean. Verified signed out on the
+live host: the page returns 200, `/api/health` is ok, `/api/item-links` returns
+401 so the route exists and is authenticated, an anonymous write is refused
+with 403 by the origin guard before authentication is even reached, an unknown
+path still returns 404, and the published bundle contains the new column and
+its validation message.
+
+**One thing is not verified.** `item_links` is created by the same
+`CREATE TABLE IF NOT EXISTS` path that created `devices`, and the application
+started against Neon, but the first authenticated read is the real proof that
+the table exists in Postgres and no signed-in read was made from here. The
+owner opening the Items page produces that evidence.
+
+The earlier blocker is now obsolete: pasting the supplier configuration into
+the Production variable is no longer needed to record a link. It would still be
+needed to change supplier rules, lead times or alternative sources, which remain
+configuration on purpose because they are commercially sensitive.
+
+Exact next action: the owner records the three identified marketplace links in
+the Items page and confirms they appear, which also verifies the Postgres table.
+Then the `sos` CNAME at Porkbun before `SH_ORIGIN` moves; that name still only
+catches the wildcard. Push notifications remain unbuilt.
