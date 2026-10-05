@@ -10,6 +10,16 @@ The owner requested a printable document to forward to Moritz and clarification 
 
 Live workspace: https://ops.thesausageguy.shop . Michael owner and Moritz manager accounts already exist. The owner deferred personal login/phone testing while requesting intake; do not badger for login, domain, provider/IP or Moritz's email again. Preserve Tropical Observatory and plain copy. `D:/CODING/SAUSAGE` and `D:/CODING/LOYVERSE` remain unchanged/read-only.
 
+## POS plan limited the history, then did not (5 October)
+
+Loyverse began answering 402 on receipts older than 31 days: "Please subscribe to Unlimited sales history." On 16 September the identical query returned 1,587 receipts back to June, so the account's plan had changed in between. Production asked for 400 days, so **the nightly sync failed outright for a period** and the catalogue stopped updating with it, even though items, stock and prices were all still readable.
+
+The reader now takes the cap from the refusal itself rather than guessing, fetches the receipts again for the window the plan does allow, and records both what was asked for and what was permitted. The weekly window narrows to whole weeks inside the cap so an average never divides by days that could not be read. That behaviour stays as a safety net.
+
+The owner then bought Unlimited sales history, and the full range works again: 1,850 receipts over 106 trading days from 2026-06-21 to 2026-10-04, PHP 2,118,789.20 reported collected, 362 variants with a sales history, average basket PHP 1,145 at 3.31 units. **2026-06-21 really is the earliest data in the account**, not a plan boundary. Production was restored to a 400 day window and a scheduled-style run confirmed it: 15 requests rather than the 9 a capped fetch needs.
+
+A snapshot is now about 744 KB and three are retained. Worth watching as the history grows.
+
 ## Supplier lead times (16 September)
 
 The owner supplied lead times for most of the catalogue by supplier. **Those details are deliberately not in this repository.** The GitHub repository is public, supplier relationships are commercially sensitive, and nothing in `memory/` or `docs/` is private. The working draft lives in ignored `.data/suppliers-draft.json` on the admin machine and belongs in the runtime database once a supplier feature exists. Do not copy supplier names, rhythms or lead times into any tracked file.
