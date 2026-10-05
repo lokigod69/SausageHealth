@@ -43,13 +43,16 @@ function TargetPrice({
   currency: LoyverseCurrency | null;
 }) {
   const state = reorder.target_state;
-  if (state === "not_shopee") return null;
+  // A stored catalogue captured before the ceiling shipped carries no state at
+  // all. Showing nothing is right: there is no ceiling in that snapshot to show.
+  if (!state || state === "not_shopee") return null;
   if (state === "no_price")
     return (
       <small className="unknown-value">
         No sell price recorded, so there is no ceiling to buy under.
       </small>
     );
+  if (!reorder.target_buy_price) return null;
   return (
     <small className={state === "over" ? "target-price over" : "target-price"}>
       Pay at most <b>{money(reorder.target_buy_price, currency)}</b>

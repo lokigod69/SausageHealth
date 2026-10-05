@@ -57,7 +57,16 @@ export function groupMargin(group: Group) {
   );
 }
 
-/** Whether anything on this card has a ceiling worth explaining. */
+/** Whether anything on this card has a ceiling worth explaining.
+ *
+ *  A missing state is not a ceiling: a catalogue stored before the ceiling
+ *  shipped has no such field, and explaining one that is not shown would be
+ *  describing something the reader cannot see.
+ */
 export function hasCeiling(group: Group) {
-  return group.items.some((due) => due.reorder.target_state !== "not_shopee");
+  return group.items.some(
+    (due) =>
+      Boolean(due.reorder.target_state) &&
+      due.reorder.target_state !== "not_shopee",
+  );
 }

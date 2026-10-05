@@ -342,13 +342,13 @@ export type Reorder = {
   buy_note: string | null;
   /** The most we can pay and keep the margin. Shopee only: elsewhere the
    *  supplier quotes the price, so there is nothing to decide against it. */
-  target_buy_price: string | null;
-  target_state: "ok" | "over" | "no_cost" | "no_price" | "not_shopee";
-  target_margin: string | null;
-  sell_price: string | null;
-  recorded_cost: string | null;
+  target_buy_price?: string | null;
+  target_state?: "ok" | "over" | "no_cost" | "no_price" | "not_shopee";
+  target_margin?: string | null;
+  sell_price?: string | null;
+  recorded_cost?: string | null;
   /** When we pay above the ceiling: the till price that restores the margin. */
-  implied_price: string | null;
+  implied_price?: string | null;
   other_sources: { name: string; url: string | null; note: string | null }[];
 };
 export type LoyverseVariant = {
@@ -442,8 +442,8 @@ export type LoyverseView = {
 };
 
 /** Thousands separators for readability. The value itself is never rounded. */
-export function grouped(value: string | null) {
-  if (value === null) return null;
+export function grouped(value: string | null | undefined) {
+  if (value === null || value === undefined) return null;
   const [whole, fraction] = value.split(".");
   const sign = whole.startsWith("-") ? "-" : "";
   const body = (sign ? whole.slice(1) : whole).replace(
@@ -462,8 +462,11 @@ export function quantity(value: string | null) {
 }
 
 /** Pad to the account's decimal places. Never shortens, so no value is altered. */
-export function money(value: string | null, currency: LoyverseCurrency | null) {
-  if (value === null) return null;
+export function money(
+  value: string | null | undefined,
+  currency: LoyverseCurrency | null,
+) {
+  if (value === null || value === undefined) return null;
   const places = currency?.decimal_places ?? null;
   let shown = value;
   if (places !== null && places > 0) {

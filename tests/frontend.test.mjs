@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { starterTasks } from "../src/readiness.ts";
-import { api, ApiError, money, quantity, submitEntry } from "../src/api.ts";
+import { api, ApiError, grouped, money, quantity, submitEntry } from "../src/api.ts";
 import {
   groupMargin,
   hasCeiling,
@@ -265,4 +265,24 @@ test("the margin shown on a card comes from the figures, not from a constant", (
     ),
     null,
   );
+});
+
+test("a catalogue stored before the ceiling shipped explains no ceiling", () => {
+  // This crashed the order view in production: the stored snapshot carried no
+  // target_state, every check fell through, and money(undefined) hit .split.
+  const old = due();
+  delete old.reorder.target_state;
+  delete old.reorder.target_buy_price;
+  delete old.reorder.target_margin;
+  assert.equal(hasCeiling(group(old)), false);
+  assert.equal(groupMargin(group(old)), null);
+});
+
+test("money and grouped refuse an absent value rather than reading it", () => {
+  const php = { code: "PHP", decimal_places: 2 };
+  assert.equal(money(undefined, php), null);
+  assert.equal(money(null, php), null);
+  assert.equal(grouped(undefined), null);
+  // A real value is still untouched.
+  assert.equal(money("206.5", php), "PHP 206.50");
 });
