@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
 from .db import audit, branches, check_password, connect, data_dir, initialize, now, password_hash
+from . import devices
 from . import intake_ai
 from . import loyverse
 from . import storage
@@ -95,9 +96,13 @@ def current_user(request: Request):
     with connect() as db:
         row = db.execute('''SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id
           WHERE s.token_hash=? AND s.expires>?''', (hashlib.sha256(token.encode()).hexdigest(), time.time())).fetchone()
-    if not row:
-        raise HTTPException(401, 'Sign in to continue.')
-    return public_user(row)
+    if row:
+        return public_user(row)
+    # A paired tablet speaks for an account without expiring, and can be revoked.
+    device = devices.holder(request.cookies.get('sh_device', ''))
+    if device:
+        return dict(public_user(device), device=device['device_name'])
+    raise HTTPException(401, 'Sign in to continue.')
 
 
 def store_allowed(user, store):
@@ -172,12 +177,63 @@ def logout(request: Request, user=Depends(current_user)):
         audit(db, user['id'], 'session.closed')
     response = JSONResponse({'ok': True})
     response.delete_cookie('sh_session', path='/')
+    response.delete_cookie('sh_device', path='/')
     return response
 
 
 @app.get('/api/me')
 def me(user=Depends(current_user)):
     return user
+
+
+class Pairing(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    acts_as: str = Field(min_length=1, max_length=64)
+
+
+@app.post('/api/devices')
+def pair_device(body: Pairing, user=Depends(current_user)):
+    return devices.start_pairing(user, body.name, body.acts_as)
+
+
+@app.get('/api/devices')
+def device_list(user=Depends(current_user)):
+    return devices.listing(user)
+
+
+@app.post('/api/devices/{device_id}/revoke')
+def device_revoke(device_id: str, user=Depends(current_user)):
+    return devices.revoke(user, device_id)
+
+
+class Redeem(BaseModel):
+    code: str = Field(min_length=1, max_length=40)
+
+
+@app.post('/api/devices/redeem')
+def device_redeem(body: Redeem):
+    """Open on purpose: the code is the credential, and guesses are counted."""
+    try:
+        device_id, token = devices.redeem(body.code)
+    except HTTPException:
+        devices.count_attempt(body.code)
+        raise
+    response = JSONResponse({'ok': True, 'device': device_id})
+    # No expiry: a counter tablet should not be logged out. Revocation is the
+    # control instead, and it is immediate because the token is checked each time.
+    response.set_cookie('sh_device', token, max_age=10 * 365 * 24 * 3600, httponly=True,
+                        secure=os.environ.get('SH_ENV') == 'production',
+                        samesite='strict', path='/')
+    return response
+
+
+@app.get('/api/users')
+def user_list(user=Depends(current_user)):
+    if user['role'] != 'owner':
+        raise HTTPException(403, 'Only the technical owner can list accounts.')
+    with connect() as db:
+        return [{'id': row['id'], 'name': row['name'], 'role': row['role']}
+                for row in db.execute("SELECT id,name,role FROM users WHERE role!='owner' ORDER BY name")]
 
 
 @app.get('/api/entries')

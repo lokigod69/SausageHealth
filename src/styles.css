@@ -4724,3 +4724,66 @@ legend {
     padding: 16px 15px;
   }
 }
+
+.settings-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pairing-code {
+  margin: 14px 0;
+  padding: 16px 18px;
+  border: 1px solid #aa87513d;
+  background: #b8852110;
+  border-radius: 11px;
+}
+.pairing-code strong {
+  display: block;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 34px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin: 6px 0 8px;
+  user-select: all;
+}
+.pairing-code p {
+  margin-bottom: 10px;
+}
+.pairing-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 14px 0;
+}
+.pairing-form label {
+  flex: 1 1 160px;
+}
+.pairing-form .button {
+  min-height: 44px;
+}
+.device-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.device-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.device-list li.revoked {
+  opacity: 0.5;
+}
+.device-list strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.device-list small {
+  font-size: 11px;
+  color: var(--faint);
+}

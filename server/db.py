@@ -152,6 +152,12 @@ def initialize():
           payload TEXT, error TEXT, request_count INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS loyverse_syncs_by_time ON loyverse_syncs(started_at);
+        CREATE TABLE IF NOT EXISTS devices (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL, token_hash TEXT UNIQUE,
+          user_id TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+          created_by TEXT NOT NULL REFERENCES users(id), last_seen TEXT, revoked_at TEXT,
+          pairing_hash TEXT, pairing_expires DOUBLE PRECISION, attempts INTEGER NOT NULL DEFAULT 0
+        );
         PRAGMA user_version=1;
         ''')
 
