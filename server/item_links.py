@@ -9,7 +9,14 @@ the app, and they take effect on the next read.
 A link is still validated before it is stored. Anything that is not a plain
 `https://` URL is refused, because this value ends up in an `href` that a person
 in the shop will click.
+
+Three slots exist per variant. The column names predate the slots: `url` holds
+the Shopee page, `lazada_url` the Lazada page, and `alternative_name` with
+`alternative_url` the third, which the shop names itself. The two marketplace
+slots are checked against their own hosts; the third takes any https link.
 """
+from urllib.parse import urlparse
+
 from .db import audit, connect, now
 
 #: A tablet on the counter is paired to a store operator, so an operator has to
@@ -18,6 +25,25 @@ MAY_RECORD = ('owner', 'manager')
 MAX_URL = 600
 MAX_NAME = 80
 MAX_NOTE = 160
+
+#: Two slots are for named marketplaces and are checked against their own hosts.
+#: A Lazada page pasted into the Shopee slot would be labelled wrongly in the
+#: shop, and the buying ceiling would silently not apply to it.
+SHOPEE_HOSTS = ('shopee.ph', 'shp.ee')
+LAZADA_HOSTS = ('lazada.com.ph', 'lazada.sg', 'lzd.co')
+
+
+def host_of(url):
+    try:
+        return (urlparse(url).hostname or '').lower()
+    except ValueError:
+        return ''
+
+
+def from_hosts(url, hosts):
+    """Matched on the host itself or a subdomain, so a lookalike does not pass."""
+    host = host_of(url)
+    return any(host == known or host.endswith('.' + known) for known in hosts)
 
 
 def clean_url(value, field):
@@ -48,6 +74,7 @@ def clean_text(value, field, limit):
 def row(entry):
     return {'variant_id': entry['variant_id'], 'sku': entry['sku'],
             'item_name': entry['item_name'], 'url': entry['url'],
+            'lazada_url': entry['lazada_url'],
             'alternative_name': entry['alternative_name'],
             'alternative_url': entry['alternative_url'], 'note': entry['note'],
             'updated_at': entry['updated_at'], 'updated_by': entry['updated_by']}
@@ -69,23 +96,32 @@ def record(user, variant_id, body):
     """
     if user['role'] not in MAY_RECORD:
         raise PermissionError('Only the owner or a manager can record a buying link.')
-    url = clean_url(body.get('url'), 'The shop link')
-    alternative_url = clean_url(body.get('alternative_url'), 'The alternative link')
-    alternative_name = clean_text(body.get('alternative_name'), 'The alternative source', MAX_NAME)
+    url = clean_url(body.get('url'), 'The Shopee link')
+    lazada_url = clean_url(body.get('lazada_url'), 'The Lazada link')
+    alternative_url = clean_url(body.get('alternative_url'), 'The third link')
+    alternative_name = clean_text(body.get('alternative_name'), 'The third source', MAX_NAME)
     note = clean_text(body.get('note'), 'The note', MAX_NOTE)
+    if url and not from_hosts(url, SHOPEE_HOSTS):
+        raise ValueError('The Shopee link has to be a shopee.ph page. '
+                         'Put a link from anywhere else in the third slot and name it.')
+    if lazada_url and not from_hosts(lazada_url, LAZADA_HOSTS):
+        raise ValueError('The Lazada link has to be a lazada.com.ph page. '
+                         'Put a link from anywhere else in the third slot and name it.')
     if alternative_url and not alternative_name:
-        raise ValueError('Name the alternative source, so a reader knows who it is.')
-    if not url and not alternative_url:
+        raise ValueError('Name the third source, so a reader knows who it is.')
+    if not url and not lazada_url and not alternative_url:
         return remove(user, variant_id)
     with connect() as db:
         db.execute('DELETE FROM item_links WHERE variant_id=?', (variant_id,))
-        db.execute('''INSERT INTO item_links(variant_id,sku,item_name,url,alternative_name,
-                        alternative_url,note,updated_at,updated_by)
-                      VALUES (?,?,?,?,?,?,?,?,?)''',
+        db.execute('''INSERT INTO item_links(variant_id,sku,item_name,url,lazada_url,
+                        alternative_name,alternative_url,note,updated_at,updated_by)
+                      VALUES (?,?,?,?,?,?,?,?,?,?)''',
                    (variant_id, clean_text(body.get('sku'), 'The SKU', MAX_NAME),
                     clean_text(body.get('item_name'), 'The item name', MAX_URL),
-                    url, alternative_name, alternative_url, note, now(), user['id']))
-        audit(db, user['id'], 'item_link.recorded', variant_id, url or alternative_url or '')
+                    url, lazada_url, alternative_name, alternative_url, note,
+                    now(), user['id']))
+        audit(db, user['id'], 'item_link.recorded', variant_id,
+              url or lazada_url or alternative_url or '')
         entry = db.execute('SELECT * FROM item_links WHERE variant_id=?', (variant_id,)).fetchone()
     return row(entry)
 

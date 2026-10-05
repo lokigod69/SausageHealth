@@ -160,11 +160,30 @@ def initialize():
         );
         CREATE TABLE IF NOT EXISTS item_links (
           variant_id TEXT PRIMARY KEY, sku TEXT, item_name TEXT, url TEXT,
-          alternative_name TEXT, alternative_url TEXT, note TEXT,
+          lazada_url TEXT, alternative_name TEXT, alternative_url TEXT, note TEXT,
           updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
         );
         PRAGMA user_version=1;
         ''')
+        add_column(db, 'item_links', 'lazada_url', 'TEXT')
+
+
+def add_column(db, table, column, kind):
+    """Add a column to a table that already exists, once.
+
+    `CREATE TABLE IF NOT EXISTS` above covers a fresh database but never alters
+    one that is already there, so a column added after a table shipped needs
+    this. Neither branch swallows an error: on Postgres the statement is itself
+    conditional, because a failed statement would abort the surrounding
+    transaction and take the rest of the schema with it; on SQLite, which has no
+    such form, the existing columns are read first.
+    """
+    if postgres_enabled():
+        db.execute(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {kind}')
+        return
+    present = {row['name'] for row in db.execute(f'PRAGMA table_info({table})')}
+    if column not in present:
+        db.execute(f'ALTER TABLE {table} ADD COLUMN {column} {kind}')
 
 
 def password_hash(password, salt=None):

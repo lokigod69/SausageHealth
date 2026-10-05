@@ -314,13 +314,17 @@ def buying_links(config, supplier, variant, item, stored=None):
     name = (item.get('name') or '').strip()
     recorded = None
     kept = (stored or {}).get(variant.get('variant_id'))
-    if kept and (kept.get('url') or kept.get('alternative_url')):
-        alternatives = []
-        if kept.get('alternative_url'):
-            alternatives.append({'name': kept.get('alternative_name'),
-                                 'url': kept['alternative_url'], 'note': None})
-        recorded = {'url': kept.get('url'), 'note': kept.get('note'),
-                    'alternatives': alternatives}
+    slots = [('Shopee', (kept or {}).get('url')),
+             ('Lazada', (kept or {}).get('lazada_url')),
+             ((kept or {}).get('alternative_name'), (kept or {}).get('alternative_url'))]
+    filled = [(name, url) for name, url in slots if url]
+    if filled:
+        # The first filled slot is the one to open; the rest are other sources.
+        # Shopee leads deliberately: it is the only one with a buying ceiling, and
+        # the ceiling follows whichever link ends up as the primary one.
+        recorded = {'url': filled[0][1], 'note': kept.get('note'),
+                    'alternatives': [{'name': name, 'url': url, 'note': None}
+                                     for name, url in filled[1:]]}
     for key in (variant.get('sku'), name):
         if recorded:
             break

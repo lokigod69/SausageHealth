@@ -31,7 +31,10 @@ export type ItemLink = {
   variant_id: string;
   sku: string | null;
   item_name: string | null;
+  /** The Shopee page. Only this slot earns a buying ceiling. */
   url: string | null;
+  lazada_url: string | null;
+  /** The third slot, which the shop names itself. */
   alternative_name: string | null;
   alternative_url: string | null;
   note: string | null;
