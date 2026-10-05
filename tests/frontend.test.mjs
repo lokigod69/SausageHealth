@@ -2,6 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { starterTasks } from "../src/readiness.ts";
 import { api, ApiError, money, quantity, submitEntry } from "../src/api.ts";
+import {
+  groupMargin,
+  hasCeiling,
+  orderMessage,
+  percentLabel,
+} from "../src/ordering.ts";
 
 const owner = { id: "owner", role: "owner", stores: ["sausage", "health"] };
 const source = (patch = {}) => ({
@@ -174,3 +180,89 @@ test("money keeps every digit while adding separators", () => {
   assert.equal(money("1234.567", php), "PHP 1,234.567");
 });
 
+const reorder = (patch = {}) => ({
+  supplier_id: "market",
+  supplier_name: "Marketplace",
+  supplier_note: null,
+  buffer_days: 2,
+  cycle: false,
+  lead_days: { min: 8, max: 8 },
+  next_order_day: null,
+  arrives: null,
+  order_by: null,
+  status: "order_now",
+  days_of_cover: 1,
+  suggested_order: 6,
+  contact: { whatsapp: null, viber: null, messenger: null, person: "Ana" },
+  buy_url: "https://shopee.ph/search?keyword=mustard",
+  buy_kind: "search",
+  buy_note: null,
+  other_sources: [],
+  target_buy_price: "206.50",
+  target_state: "ok",
+  target_margin: "0.30",
+  sell_price: "295",
+  recorded_cost: "192",
+  implied_price: null,
+  ...patch,
+});
+const due = (patch = {}) => ({
+  key: "v1:store-a",
+  name: "Mustard Dijon 185g",
+  sku: "10437",
+  inStock: "1",
+  reorder: reorder(patch),
+});
+const group = (...items) => ({
+  supplierId: "market",
+  supplierName: "Marketplace",
+  reorder: items[0].reorder,
+  items,
+});
+
+test("the buying ceiling never reaches the message a supplier is sent", () => {
+  // The text goes out over WhatsApp. The ceiling is our margin, and a supplier
+  // who reads it knows the top of every negotiation after it.
+  const text = orderMessage(
+    group(due(), due({ target_state: "over", implied_price: "239" })),
+    "Panglao",
+  );
+  for (const secret of ["206.50", "0.30", "30%", "192", "295", "239"])
+    assert.ok(!text.includes(secret), `message leaked ${secret}: ${text}`);
+});
+
+test("the message a supplier is sent still carries the order itself", () => {
+  const text = orderMessage(group(due()), "Panglao");
+  assert.ok(text.includes("Hi Ana"));
+  assert.ok(text.includes("- Mustard Dijon 185g: 6 (10437)"));
+  assert.ok(text.includes("The Sausage Guy Panglao"));
+});
+
+test("a share is shown as a percentage without a floating point tail", () => {
+  // 0.3 * 100 is 30.000000000000004 in binary floating point.
+  assert.equal(percentLabel("0.30"), "30%");
+  assert.equal(percentLabel("0.35"), "35%");
+  assert.equal(percentLabel("0.325"), "32.5%");
+  assert.equal(percentLabel(null), null);
+});
+
+test("a card explains the ceiling only when something on it has one", () => {
+  assert.equal(hasCeiling(group(due())), true);
+  assert.equal(hasCeiling(group(due({ target_state: "not_shopee" }))), false);
+  // One Shopee line among quoted ones is still worth explaining.
+  assert.equal(
+    hasCeiling(group(due({ target_state: "not_shopee" }), due())),
+    true,
+  );
+});
+
+test("the margin shown on a card comes from the figures, not from a constant", () => {
+  assert.equal(groupMargin(group(due({ target_margin: "0.35" }))), "0.35");
+  // A card of quoted suppliers carries no margin to show at all.
+  assert.equal(
+    groupMargin(
+      group(due({ target_state: "not_shopee", target_margin: null })),
+    ),
+    null,
+  );
+});

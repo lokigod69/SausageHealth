@@ -4787,3 +4787,18 @@ legend {
   font-size: 11px;
   color: var(--faint);
 }
+
+.target-price {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.target-price b {
+  color: var(--text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+/* Paying above the ceiling needs a decision at the till, so it is not quiet. */
+.target-price.over,
+.target-price.over b {
+  color: var(--accent);
+}

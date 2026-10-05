@@ -305,6 +305,15 @@ export type Reorder = {
   buy_url: string | null;
   buy_kind: "listing" | "search" | null;
   buy_note: string | null;
+  /** The most we can pay and keep the margin. Shopee only: elsewhere the
+   *  supplier quotes the price, so there is nothing to decide against it. */
+  target_buy_price: string | null;
+  target_state: "ok" | "over" | "no_cost" | "no_price" | "not_shopee";
+  target_margin: string | null;
+  sell_price: string | null;
+  recorded_cost: string | null;
+  /** When we pay above the ceiling: the till price that restores the margin. */
+  implied_price: string | null;
   other_sources: { name: string; url: string | null; note: string | null }[];
 };
 export type LoyverseVariant = {

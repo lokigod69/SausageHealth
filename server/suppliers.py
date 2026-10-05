@@ -21,6 +21,8 @@ import os
 from datetime import date, timedelta
 from urllib.parse import quote
 
+from . import target_price
+
 WEEKDAYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')
 
 
@@ -281,6 +283,9 @@ def assign(items, today, config=None):
                     entry['alternative_name'] = other['name']
                     entry['alternative_lead_days'] = other['lead_days']
                 entry.update(buying_links(config, supplier, variant, item))
+                # After the links: the ceiling only applies where the price is
+                # picked off a listing, and the link is what establishes that.
+                entry.update(target_price.for_buy_link(variant, row, entry.get('buy_url')))
                 entry['suggested_order'] = suggested_order(row, supplier)
                 entry['contact'] = supplier.get('contact')
                 assignments[key] = entry

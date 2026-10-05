@@ -299,3 +299,66 @@ def test_a_malformed_contact_number_is_refused(monkeypatch):
         with pytest.raises(ValueError):
             suppliers.registry()
 
+
+# ---------------------------------------------------------------- buying ceiling
+MARKETPLACE = {
+    'suppliers': [
+        {'id': 'market', 'name': 'Marketplace', 'lead_days': 8,
+         'search_url': 'https://shopee.ph/search?keyword={query}'},
+        {'id': 'quoted', 'name': 'Quoted Co', 'lead_days': 2},
+    ],
+    'rules': [
+        {'match': {'category': 'Pantry'}, 'supplier': 'market'},
+        {'match': {'category': 'Sausages'}, 'supplier': 'quoted'},
+    ],
+}
+
+
+def priced(category, price='295', cost='192', pricing='FIXED'):
+    """An item with the money fields the ceiling is computed from."""
+    return {'name': 'Mustard', 'category_name': category,
+            'variants': [{'variant_id': 'v1', 'default_price': price, 'cost': cost,
+                          'default_pricing_type': pricing, 'stores': [row(in_stock='1')]}]}
+
+
+def entry_for(monkeypatch, item_row, config=None):
+    config = configured(monkeypatch, config or MARKETPLACE)
+    result = suppliers.assign([item_row], date(2026, 9, 16), config)
+    return result['assignments'][('v1', 'store-a')]
+
+
+def test_a_marketplace_order_carries_the_price_ceiling(monkeypatch):
+    entry = entry_for(monkeypatch, priced('Pantry'))
+    assert entry['target_buy_price'] == '206.50'
+    assert entry['target_state'] == 'ok'
+    assert entry['target_margin'] == '0.30'
+
+
+def test_a_supplier_who_quotes_a_price_carries_no_ceiling(monkeypatch):
+    # Nothing is chosen off a page there, so a ceiling beside it decides nothing.
+    entry = entry_for(monkeypatch, priced('Sausages'))
+    assert entry['target_state'] == 'not_shopee'
+    assert entry['target_buy_price'] is None
+    assert entry['sell_price'] is None
+
+
+def test_the_ceiling_follows_the_link_even_when_the_rule_changes(monkeypatch):
+    # The gate is the buy link's host, so moving the rule to the other supplier
+    # moves the ceiling with it, with no list of names to keep in step.
+    swapped = json.loads(json.dumps(MARKETPLACE))
+    swapped['rules'][1]['supplier'] = 'market'
+    assert entry_for(monkeypatch, priced('Sausages'), swapped)['target_state'] == 'ok'
+
+
+def test_a_marketplace_item_above_the_ceiling_names_the_till_price(monkeypatch):
+    entry = entry_for(monkeypatch, priced('Pantry', price='24', cost='167'))
+    assert entry['target_state'] == 'over'
+    assert entry['implied_price'] == '239'
+
+
+def test_a_reorder_row_without_money_fields_still_assigns_a_supplier(monkeypatch):
+    # The ceiling is extra. Missing prices must not cost the shop its lead time.
+    entry = entry_for(monkeypatch, item(name='Plain Item', category='Pantry'))
+    assert entry['supplier_name'] == 'Marketplace'
+    assert entry['target_state'] == 'no_price'
+    assert entry['target_buy_price'] is None

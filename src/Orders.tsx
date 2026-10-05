@@ -12,42 +12,55 @@ import {
 import {
   api,
   branches,
+  money,
   type LoyverseCatalogue,
+  type LoyverseCurrency,
   type LoyverseView,
   type Reorder,
   type Store,
 } from "./api";
+import {
+  groupMargin,
+  hasCeiling,
+  orderMessage,
+  percentLabel,
+  type Group,
+} from "./ordering";
 
-type Due = {
-  key: string;
-  name: string;
-  sku: string | null;
-  inStock: string | null;
+/** The ceiling the person ordering has to stay under, and what to do if they cannot.
+ *
+ *  Shown only where the price is picked off a listing, which today means Shopee.
+ *  It is deliberately not part of `orderMessage`: that text goes to the supplier,
+ *  and our ceiling is our margin.
+ */
+function TargetPrice({
+  reorder,
+  currency,
+}: {
   reorder: Reorder;
-};
-type Group = {
-  supplierId: string;
-  supplierName: string;
-  reorder: Reorder;
-  items: Due[];
-};
-
-/** The message a person would otherwise type out by hand. */
-function orderMessage(group: Group, branch: string) {
-  const person = group.reorder.contact?.person;
-  const lines = group.items.map((due) => {
-    const amount = due.reorder.suggested_order;
-    return amount === null
-      ? `- ${due.name}`
-      : `- ${due.name}: ${amount}${due.sku ? ` (${due.sku})` : ""}`;
-  });
-  return [
-    `Hi${person ? " " + person : ""}, order for The Sausage Guy ${branch}:`,
-    "",
-    ...lines,
-    "",
-    "Thank you!",
-  ].join("\n");
+  currency: LoyverseCurrency | null;
+}) {
+  const state = reorder.target_state;
+  if (state === "not_shopee") return null;
+  if (state === "no_price")
+    return (
+      <small className="unknown-value">
+        No sell price recorded, so there is no ceiling to buy under.
+      </small>
+    );
+  return (
+    <small className={state === "over" ? "target-price over" : "target-price"}>
+      Pay at most <b>{money(reorder.target_buy_price, currency)}</b>
+      {state === "over" && (
+        <>
+          {" — but we already pay "}
+          {money(reorder.recorded_cost, currency)}
+          {", so at that price the till has to read "}
+          <b>{money(reorder.implied_price, currency)}</b>
+        </>
+      )}
+    </small>
+  );
 }
 
 function Channels({ group, message }: { group: Group; message: string }) {
@@ -299,6 +312,10 @@ export function Orders({ scope }: { scope: Store }) {
                         {due.reorder.status === "out_of_stock" && (
                           <small className="short-by">out of stock</small>
                         )}
+                        <TargetPrice
+                          reorder={due.reorder}
+                          currency={catalogue?.currency ?? null}
+                        />
                       </span>
                       <strong>
                         {due.reorder.suggested_order === null
@@ -308,6 +325,15 @@ export function Orders({ scope }: { scope: Store }) {
                     </li>
                   ))}
                 </ul>
+                {hasCeiling(group) && (
+                  <p className="small-text muted">
+                    A ceiling holds {percentLabel(groupMargin(group))} of the
+                    till price. It is what the unit costs by the time it is in
+                    the shop, so shipping and fees count towards it — a listing
+                    just under the ceiling can still miss it once delivery is
+                    added.
+                  </p>
+                )}
                 <pre className="order-message">{message}</pre>
                 <Channels group={group} message={message} />
                 {!group.reorder.contact?.whatsapp && (
