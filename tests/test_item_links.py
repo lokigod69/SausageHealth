@@ -199,3 +199,49 @@ def test_a_recorded_link_still_earns_the_buying_ceiling(monkeypatch):
     # The ceiling follows the link's host, so a recorded Shopee page qualifies.
     entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': None, 'note': None}})
     assert entry['target_buy_price'] == '206.50' and entry['target_state'] == 'ok'
+
+
+# ---------------------------------------------------------------- shipped links
+def stored_catalogue(sku='10437', variant_id='v-mustard'):
+    """A snapshot the way a sync leaves one, which is what resolves a SKU."""
+    import json as encoder
+    from server.db import connect, now
+    payload = {'captured_at': now(), 'items': [
+        {'id': 'i1', 'name': 'Original Dijon Mustard 185g',
+         'variants': [{'variant_id': variant_id, 'sku': sku}]}]}
+    with connect() as db:
+        owner = db.execute("SELECT id FROM users WHERE role='owner'").fetchone()['id']
+        db.execute("""INSERT INTO loyverse_syncs(id,actor_id,started_at,finished_at,status,
+                      payload,error,request_count) VALUES (?,?,?,?,?,?,?,?)""",
+                   ('s1', owner, now(), now(), 'complete', encoder.dumps(payload), None, 1))
+
+
+def test_a_shipped_link_needs_no_database_row(env):
+    # The point of shipping them: a deploy carries them, nobody types them in.
+    stored_catalogue()
+    rows = client().get('/api/item-links').json()
+    mustard = [row for row in rows if row['sku'] == '10437']
+    assert len(mustard) == 1
+    assert 'shopee.ph' in mustard[0]['url']
+    assert mustard[0]['updated_by'] == 'shipped'
+
+
+def test_a_link_the_shop_records_beats_the_shipped_one(env):
+    stored_catalogue()
+    owner = client()
+    owner.put('/api/item-links/v-mustard', json={'url': 'https://shopee.ph/theirs-i.1.2'})
+    rows = {row['variant_id']: row for row in owner.get('/api/item-links').json()}
+    assert rows['v-mustard']['url'] == 'https://shopee.ph/theirs-i.1.2'
+    assert rows['v-mustard']['updated_by'] != 'shipped'
+
+
+def test_a_shipped_link_for_an_unknown_sku_is_simply_absent(env):
+    # Attaching it to the wrong variant would be worse than not showing it.
+    stored_catalogue(sku='99999', variant_id='v-other')
+    rows = client().get('/api/item-links').json()
+    assert [row for row in rows if row['variant_id'] == 'v-other'] == []
+
+
+def test_shipped_links_need_no_snapshot_to_be_safe(env):
+    # Before the first sync there is nothing to resolve against, and that is fine.
+    assert client().get('/api/item-links').json() == []

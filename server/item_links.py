@@ -16,6 +16,7 @@ host, so a page from the wrong marketplace cannot be filed under the other. The
 table still carries `alternative_name` and `alternative_url` from a third,
 freely named slot that was removed; nothing reads or writes them.
 """
+import json
 from urllib.parse import urlparse
 
 from .db import audit, connect, now
@@ -79,11 +80,61 @@ def row(entry):
             'updated_at': entry['updated_at'], 'updated_by': entry['updated_by']}
 
 
-def listing():
-    """Every recorded link, keyed by variant so a catalogue read can join them."""
+#: Links identified and confirmed with the owner, shipped with the application.
+#: They are keyed by SKU because a SKU is what a person reads off the catalogue,
+#: and a variant id is not. A link the shop records in the app always wins over
+#: one of these; removing a recorded link falls back to the shipped one rather
+#: than to nothing, so a shipped link has to be deleted here to stay gone.
+SHIPPED = {
+    '10437': {'url': 'https://shopee.ph/Kuhne-Mustard-Dijon-185g'
+                     '-i.284922593.56757096831',
+              'note': 'Kuhne Dijon 185g'},
+    '10202': {'url': 'https://shopee.ph/Crying-Thaiger-Sriracha-Wasabi-Chili-Sauce-440mL'
+                     '-i.149174871.24283515465',
+              'note': 'Crying Thaiger Sriracha Wasabi 440ml'},
+    '10245': {'url': 'https://shopee.ph/Sante-Fruit-Muesli-350g'
+                     '-i.149174871.14461423123',
+              'note': 'Sante Fruit Muesli 350g, the Fruit variant only'},
+}
+
+
+def shipped():
+    """The shipped links against today's variant ids, resolved through the catalogue.
+
+    An unknown SKU simply does not appear: a link that cannot be tied to a
+    variant is better absent than attached to the wrong one.
+    """
+    if not SHIPPED:
+        return {}
     with connect() as db:
-        return {entry['variant_id']: row(entry)
-                for entry in db.execute('SELECT * FROM item_links')}
+        stored = db.execute("""SELECT payload FROM loyverse_syncs
+            WHERE status='complete' AND payload IS NOT NULL
+            ORDER BY started_at DESC LIMIT 1""").fetchone()
+    if not stored:
+        return {}
+    catalogue = json.loads(stored['payload'])
+    found = {}
+    for item in catalogue.get('items') or []:
+        for variant in item.get('variants') or []:
+            entry = SHIPPED.get(str(variant.get('sku')))
+            if not entry:
+                continue
+            found[variant['variant_id']] = {
+                'variant_id': variant['variant_id'], 'sku': variant.get('sku'),
+                'item_name': item.get('name'), 'url': entry.get('url'),
+                'lazada_url': entry.get('lazada_url'), 'note': entry.get('note'),
+                'updated_at': catalogue.get('captured_at'), 'updated_by': 'shipped'}
+    return found
+
+
+def listing():
+    """Every link for a variant: what the shop recorded, over what ships with us."""
+    with connect() as db:
+        recorded = {entry['variant_id']: row(entry)
+                    for entry in db.execute('SELECT * FROM item_links')}
+    for variant_id, entry in shipped().items():
+        recorded.setdefault(variant_id, entry)
+    return recorded
 
 
 def record(user, variant_id, body):
