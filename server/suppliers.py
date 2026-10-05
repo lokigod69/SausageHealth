@@ -333,8 +333,7 @@ def buying_links(config, supplier, variant, item, stored=None):
     recorded = None
     kept = (stored or {}).get(variant.get('variant_id'))
     slots = [('Shopee', (kept or {}).get('url')),
-             ('Lazada', (kept or {}).get('lazada_url')),
-             ((kept or {}).get('alternative_name'), (kept or {}).get('alternative_url'))]
+             ('Lazada', (kept or {}).get('lazada_url'))]
     filled = [(name, url) for name, url in slots if url]
     if filled:
         # The first filled slot is the one to open; the rest are other sources.

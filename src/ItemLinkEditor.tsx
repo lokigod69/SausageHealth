@@ -18,7 +18,6 @@ function filled(link: ItemLink | undefined) {
   return [
     { name: "Shopee", url: link.url },
     { name: "Lazada", url: link.lazada_url },
-    { name: link.alternative_name ?? "Other", url: link.alternative_url },
   ].filter((slot): slot is { name: string; url: string } => Boolean(slot.url));
 }
 
@@ -86,22 +85,18 @@ export function LinkEditor({
 }) {
   const [shopee, setShopee] = useState(link?.url ?? "");
   const [lazada, setLazada] = useState(link?.lazada_url ?? "");
-  const [otherName, setOtherName] = useState(link?.alternative_name ?? "");
-  const [otherUrl, setOtherUrl] = useState(link?.alternative_url ?? "");
   const [note, setNote] = useState(link?.note ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   function wrongField() {
-    for (const value of [shopee, lazada, otherUrl])
+    for (const value of [shopee, lazada])
       if (!looksLikeLink(value))
         return "A link has to start with https:// and contain no spaces.";
     if (shopee.trim() && !SHOPEE.test(shopee.trim()))
       return "That is not a shopee.ph link. Put it in the third slot and name it.";
     if (lazada.trim() && !LAZADA.test(lazada.trim()))
       return "That is not a lazada.com.ph link. Put it in the third slot and name it.";
-    if (otherUrl.trim() && !otherName.trim())
-      return "Name the third source, so a reader knows who it is.";
     return "";
   }
 
@@ -122,8 +117,6 @@ export function LinkEditor({
           body: JSON.stringify({
             url: shopee.trim() || null,
             lazada_url: lazada.trim() || null,
-            alternative_name: otherName.trim() || null,
-            alternative_url: otherUrl.trim() || null,
             note: note.trim() || null,
             sku,
             item_name: itemName,
@@ -179,24 +172,6 @@ export function LinkEditor({
       </div>
       <div className="link-editor-fields">
         <label className="link-editor-narrow">
-          Third source · name
-          <input
-            value={otherName}
-            onChange={(event) => setOtherName(event.target.value)}
-            placeholder="Other seller, a shop, a website…"
-            autoComplete="off"
-          />
-        </label>
-        <label>
-          Third source · link
-          <input
-            value={otherUrl}
-            onChange={(event) => setOtherUrl(event.target.value)}
-            placeholder="https://..."
-            autoComplete="off"
-          />
-        </label>
-        <label className="link-editor-narrow">
           Note
           <input
             value={note}
@@ -207,11 +182,10 @@ export function LinkEditor({
         </label>
       </div>
       <p className="small-text muted">
-        Fill in whichever you have; none is required. A short Shopee link works
-        too, and is stored exactly as pasted. Paste the page for this exact size
-        and flavour — the links are recorded against this one variant, not the
-        whole item. Only the Shopee page gets a buying ceiling, because that is
-        where a price is picked off a listing.
+        Either or both; neither is required. A short Shopee link works too, and
+        is stored exactly as pasted. Paste the page for this exact size and
+        flavour — a link belongs to this one variant, not the whole item. Only
+        the Shopee page gets a buying ceiling.
       </p>
       {error && <div className="error-note">{error}</div>}
       <div className="link-editor-actions">

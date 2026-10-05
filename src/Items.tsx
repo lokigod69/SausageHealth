@@ -758,8 +758,6 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                         </th>
                       )}
                       <th scope="col">Item</th>
-                      <th scope="col">SKU</th>
-                      <th scope="col">Category</th>
                       {showStore && <th scope="col">Store</th>}
                       <th scope="col" className="numeric">
                         Price
@@ -834,21 +832,6 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                                   )}
                                 </span>
                               </span>
-                            </td>
-                            <td data-label="SKU">
-                              <span className="mono">{variant.sku ?? "—"}</span>
-                              {variant.barcode && (
-                                <small className="mono muted">
-                                  {variant.barcode}
-                                </small>
-                              )}
-                            </td>
-                            <td data-label="Category">
-                              {item.category_name ?? (
-                                <span className="unknown-value">
-                                  No category
-                                </span>
-                              )}
                             </td>
                             {showStore && (
                               <td data-label="Store">
@@ -926,7 +909,7 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                             <tr className="link-editor-row">
                               <td
                                 colSpan={
-                                  (showStore ? 13 : 12) + (canEdit ? 1 : 0)
+                                  (showStore ? 11 : 10) + (canEdit ? 1 : 0)
                                 }
                               >
                                 <LinkEditor

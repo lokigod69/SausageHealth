@@ -193,8 +193,6 @@ class ItemLink(BaseModel):
     """Where a product is bought. Everything is optional; clearing it removes the record."""
     url: str | None = Field(default=None, max_length=item_links.MAX_URL)
     lazada_url: str | None = Field(default=None, max_length=item_links.MAX_URL)
-    alternative_name: str | None = Field(default=None, max_length=item_links.MAX_NAME)
-    alternative_url: str | None = Field(default=None, max_length=item_links.MAX_URL)
     note: str | None = Field(default=None, max_length=item_links.MAX_NOTE)
     sku: str | None = Field(default=None, max_length=item_links.MAX_NAME)
     item_name: str | None = Field(default=None, max_length=item_links.MAX_URL)

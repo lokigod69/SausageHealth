@@ -4239,62 +4239,6 @@ legend {
   .items-bar .button {
     justify-content: center;
   }
-  .items-table-wrap {
-    border: 0;
-    background: transparent;
-    overflow: visible;
-  }
-  .items-table,
-  .items-table tbody,
-  .items-table tr,
-  .items-table td {
-    display: block;
-    min-width: 0;
-  }
-  .items-table thead {
-    display: none;
-  }
-  .items-table tr {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 11px;
-    padding: 6px 4px;
-    margin-bottom: 12px;
-  }
-  .items-table td {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
-    border-bottom: 0;
-    padding: 7px 14px;
-    text-align: right;
-  }
-  .items-table td::before {
-    content: attr(data-label);
-    font-size: 10px;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--faint);
-    text-align: left;
-    flex-shrink: 0;
-  }
-  .items-table td:first-child {
-    padding-top: 12px;
-  }
-  .items-table td:last-child {
-    padding-bottom: 12px;
-  }
-  .items-table small {
-    text-align: right;
-  }
-  .item-name {
-    align-items: flex-end;
-    max-width: none;
-  }
-  .item-flags {
-    justify-content: flex-end;
-  }
 }
 
 .store-id-list {
@@ -4969,4 +4913,182 @@ legend {
 .items-select-all {
   margin: 0 0 12px;
   font-size: 12px;
+}
+
+/* ---- The navigation narrows to icons, so a wide table gets the room ---- */
+.nav-shrink {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  display: inline-flex;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.nav-shrink:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+/* Only from a tablet upwards. A phone already slides the whole sidebar away,
+   and a 64px rail there would squeeze the content to a third of the screen. */
+@media (min-width: 721px) {
+  .app-shell.nav-shut .sidebar {
+    width: 64px;
+    padding: 48px 8px 16px;
+    align-items: center;
+  }
+  .app-shell.nav-shut .main-shell {
+    width: calc(100% - 64px);
+    margin-left: 64px;
+  }
+  .app-shell.nav-shut .nav-item span,
+  .app-shell.nav-shut .nav-item small,
+  .app-shell.nav-shut .brand > span:last-child,
+  .app-shell.nav-shut .workspace-label,
+  .app-shell.nav-shut .sidebar-bottom {
+    display: none;
+  }
+  .app-shell.nav-shut .nav-item {
+    justify-content: center;
+    padding: 12px 0;
+    width: 100%;
+  }
+  .app-shell.nav-shut .brand {
+    justify-content: center;
+  }
+  .app-shell.nav-shut .nav-shrink {
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  /* ---- Tablet: a portrait tablet gets the card layout, landscape a tighter table ---- */
+  @media (min-width: 721px) and (max-width: 1180px) {
+    /* Measured at 1024: the numeric columns carried the whole overflow in their
+       padding, so it comes off there rather than out of a column. */
+    .items-table th,
+    .items-table td {
+      padding: 8px 5px;
+      font-size: 12px;
+    }
+  }
+  .items-table th:first-child,
+  .items-table td:first-child {
+    padding-left: 10px;
+  }
+  .items-table th:last-child,
+  .items-table td:last-child {
+    padding-right: 10px;
+  }
+  .items-table small {
+    font-size: 10px;
+  }
+  .supplier-cell select {
+    max-width: 96px;
+  }
+  /* The 940px floor was set for twelve columns. Two are gone and the padding is
+     tighter, so the table fits a landscape tablet without sideways scrolling. */
+  .items-table {
+    min-width: 0;
+  }
+  .items-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ---- Touch: a finger needs a bigger target than a mouse pointer ---- */
+@media (pointer: coarse) {
+  .items-table select,
+  .items-table input[type="checkbox"] {
+    min-height: 38px;
+  }
+  .items-table input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+  .nav-item {
+    min-height: 46px;
+  }
+  .link-add,
+  .icon-button {
+    min-height: 38px;
+    min-width: 38px;
+  }
+  .button {
+    min-height: 44px;
+  }
+}
+
+/* ---- A portrait tablet reads the item list as cards, not as a wide table ----
+   The phone had these already. They live here so the width can be raised
+   without also turning the sidebar into a drawer, which the 720px block does
+   and a tablet does not want. */
+@media (max-width: 860px) {
+  .items-table-wrap {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+  .items-table,
+  .items-table tbody,
+  .items-table tr,
+  .items-table td {
+    display: block;
+    min-width: 0;
+  }
+  .items-table thead {
+    display: none;
+  }
+  .items-table tr {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 6px 4px;
+    margin-bottom: 12px;
+  }
+  .items-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 0;
+    padding: 7px 14px;
+    text-align: right;
+  }
+  .items-table td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    text-align: left;
+    flex-shrink: 0;
+  }
+  .items-table td:first-child {
+    padding-top: 12px;
+  }
+  .items-table td:last-child {
+    padding-bottom: 12px;
+  }
+  .items-table small {
+    text-align: right;
+  }
+  .item-name {
+    align-items: flex-end;
+    max-width: none;
+  }
+  .item-flags {
+    justify-content: flex-end;
+  }
+  .items-table td.pick-column {
+    justify-content: flex-start;
+  }
+  .items-table td.pick-column::before {
+    content: "SELECT";
+  }
+  .supplier-cell select {
+    max-width: 190px;
+  }
 }

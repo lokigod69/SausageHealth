@@ -46,21 +46,24 @@ def test_an_over_long_link_is_refused(env):
     assert put(client(), url='https://shopee.ph/' + 'a' * 700).status_code == 422
 
 
-def test_the_third_source_has_to_be_named(env):
-    owner = client()
-    assert put(owner, alternative_url='https://butcher.example/pork').status_code == 422
-    assert put(owner, alternative_url='https://butcher.example/pork',
-               alternative_name='Butcher in town').status_code == 200
-
-
-def test_any_one_slot_alone_is_enough_to_keep_a_record(env):
+def test_either_slot_alone_is_enough_to_keep_a_record(env):
     owner = client()
     only_lazada = put(owner, lazada_url=LAZADA)
     assert only_lazada.json()['url'] is None
     assert only_lazada.json()['lazada_url'] == LAZADA
-    only_third = put(owner, variant='v2', alternative_url='https://butcher.example/pork',
-                     alternative_name='Butcher in town')
-    assert only_third.json()['alternative_name'] == 'Butcher in town'
+    only_shopee = put(owner, variant='v2', url=SHOPEE)
+    assert only_shopee.json()['lazada_url'] is None
+    assert only_shopee.json()['url'] == SHOPEE
+
+
+def test_a_link_from_neither_marketplace_is_refused(env):
+    # There is no third slot any more, so an unfiled link has nowhere to go and
+    # is refused rather than filed under the wrong marketplace.
+    owner = client()
+    for field in ('url', 'lazada_url'):
+        refused = put(owner, **{field: 'https://butcher.example/pork'})
+        assert refused.status_code == 422, field
+    assert owner.get('/api/item-links').json() == []
 
 
 def test_a_lazada_page_in_the_shopee_slot_is_refused(env):
@@ -71,11 +74,8 @@ def test_a_lazada_page_in_the_shopee_slot_is_refused(env):
     assert put(owner, lazada_url=SHOPEE).status_code == 422
 
 
-def test_a_link_from_anywhere_else_belongs_in_the_third_slot(env):
-    owner = client()
-    assert put(owner, url='https://butcher.example/pork').status_code == 422
-    assert put(owner, alternative_url='https://butcher.example/pork',
-               alternative_name='Butcher in town').status_code == 200
+def test_a_link_from_anywhere_else_is_refused(env):
+    assert put(client(), url='https://butcher.example/pork').status_code == 422
 
 
 def test_a_shopee_lookalike_host_is_not_accepted_as_shopee(env):
@@ -86,15 +86,6 @@ def test_a_shopee_lookalike_host_is_not_accepted_as_shopee(env):
 def test_a_short_shopee_link_is_accepted_and_stored_as_pasted(env):
     short = 'https://ph.shp.ee/qmXpKKrX'
     assert put(client(), url=short).json()['url'] == short
-
-
-def test_all_three_slots_can_hold_a_link_at_once(env):
-    saved = put(client(), url=SHOPEE, lazada_url=LAZADA,
-                alternative_url='https://butcher.example/pork',
-                alternative_name='Butcher in town').json()
-    assert saved['url'] == SHOPEE
-    assert saved['lazada_url'] == LAZADA
-    assert saved['alternative_url'] == 'https://butcher.example/pork'
 
 
 def test_clearing_every_field_removes_the_record_rather_than_emptying_it(env):
@@ -177,8 +168,7 @@ def assigned(monkeypatch, stored=None):
 
 def test_a_link_the_shop_recorded_beats_one_in_configuration(monkeypatch):
     # Configuration needs a deploy, so it is the staler of the two by construction.
-    entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': None,
-                                          'alternative_url': None, 'note': None}})
+    entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': None, 'note': None}})
     assert entry['buy_url'] == SHOPEE
     assert entry['buy_kind'] == 'listing'
 
@@ -188,39 +178,24 @@ def test_configuration_still_applies_where_the_shop_recorded_nothing(monkeypatch
 
 
 def test_an_empty_recorded_row_does_not_shadow_configuration(monkeypatch):
-    entry = assigned(monkeypatch, {'v1': {'url': None, 'lazada_url': None,
-                                          'alternative_url': None, 'note': None}})
+    entry = assigned(monkeypatch, {'v1': {'url': None, 'lazada_url': None, 'note': None}})
     assert entry['buy_url'] == 'https://shopee.ph/configured-i.1.1'
 
 
-def test_shopee_leads_and_the_others_follow_as_sources(monkeypatch):
-    entry = assigned(monkeypatch, {'v1': {
-        'url': SHOPEE, 'lazada_url': LAZADA, 'alternative_url': 'https://butcher.example/pork',
-        'alternative_name': 'Butcher in town', 'note': None}})
+def test_shopee_leads_and_lazada_follows_as_a_source(monkeypatch):
+    entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': LAZADA, 'note': None}})
     assert entry['buy_url'] == SHOPEE and entry['buy_kind'] == 'listing'
     assert {'name': 'Lazada', 'url': LAZADA, 'note': None} in entry['other_sources']
-    assert {'name': 'Butcher in town', 'url': 'https://butcher.example/pork',
-            'note': None} in entry['other_sources']
 
 
-def test_without_a_shopee_page_the_next_slot_becomes_the_one_to_open(monkeypatch):
-    entry = assigned(monkeypatch, {'v1': {'url': None, 'lazada_url': LAZADA,
-                                          'alternative_url': None, 'note': None}})
+def test_without_a_shopee_page_lazada_becomes_the_one_to_open(monkeypatch):
+    entry = assigned(monkeypatch, {'v1': {'url': None, 'lazada_url': LAZADA, 'note': None}})
     assert entry['buy_url'] == LAZADA and entry['buy_kind'] == 'listing'
     # And it earns no ceiling, because a Lazada price is not a Shopee price.
     assert entry['target_state'] == 'not_shopee'
 
 
-def test_the_named_third_slot_can_be_the_only_one(monkeypatch):
-    entry = assigned(monkeypatch, {'v1': {
-        'url': None, 'lazada_url': None, 'alternative_url': 'https://butcher.example/pork',
-        'alternative_name': 'Butcher in town', 'note': None}})
-    assert entry['buy_url'] == 'https://butcher.example/pork'
-    assert entry['other_sources'] == []
-
-
 def test_a_recorded_link_still_earns_the_buying_ceiling(monkeypatch):
     # The ceiling follows the link's host, so a recorded Shopee page qualifies.
-    entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': None,
-                                          'alternative_url': None, 'note': None}})
+    entry = assigned(monkeypatch, {'v1': {'url': SHOPEE, 'lazada_url': None, 'note': None}})
     assert entry['target_buy_price'] == '206.50' and entry['target_state'] == 'ok'

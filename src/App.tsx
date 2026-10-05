@@ -10,6 +10,8 @@ import {
   ArrowLeft,
   ArrowRight,
   AudioLines,
+  ChevronsLeft,
+  ChevronsRight,
   BookOpen,
   Check,
   CheckCheck,
@@ -235,34 +237,34 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
         </span>
         <h2>Sign in</h2>
         <form onSubmit={submit}>
-            <label>
-              Email
-              <input
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-              />
-            </label>
-            <ErrorNote message={error} />
-            <button className="button primary" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in"}
-              <ArrowRight size={17} />
-            </button>
-          </form>
+          <label>
+            Email
+            <input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+            />
+          </label>
+          <ErrorNote message={error} />
+          <button className="button primary" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+            <ArrowRight size={17} />
+          </button>
+        </form>
         <div className="login-stores">
           {branches.map((branch) => (
             <span key={branch.id}>
@@ -940,6 +942,25 @@ export default function App() {
   const [detail, setDetail] = useState<Entry | null>(null);
   const [guide, setGuide] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  // Remembered per browser so the shop tablet keeps the width it was left at.
+  // Browser storage can throw or come back empty, so it never decides alone.
+  const [navShut, setNavShut] = useState(() => {
+    try {
+      return localStorage.getItem("sos.nav") === "shut";
+    } catch {
+      return false;
+    }
+  });
+  function toggleNav() {
+    setNavShut((shut) => {
+      try {
+        localStorage.setItem("sos.nav", shut ? "open" : "shut");
+      } catch {
+        // A browser that refuses storage still gets the toggle, just not the memory.
+      }
+      return !shut;
+    });
+  }
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [collectionLoaded, setCollectionLoaded] = useState(false);
@@ -1077,7 +1098,7 @@ export default function App() {
           settings: "Settings",
         }[page];
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${navShut ? "nav-shut" : ""}`}>
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
@@ -1089,6 +1110,16 @@ export default function App() {
         />
       )}
       <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
+        <button
+          className="nav-shrink"
+          onClick={toggleNav}
+          aria-label={
+            navShut ? "Widen the navigation" : "Narrow the navigation"
+          }
+          title={navShut ? "Widen the navigation" : "Narrow the navigation"}
+        >
+          {navShut ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+        </button>
         <button
           className="brand"
           onClick={() => navigate("overview")}
@@ -1118,6 +1149,10 @@ export default function App() {
                 className={`nav-item ${page === n.id ? "active" : ""}`}
                 onClick={() => navigate(n.id)}
                 aria-current={page === n.id ? "page" : undefined}
+                // Narrowed, the label is hidden and the icon is all that is
+                // left, so the name has to live on the button itself.
+                aria-label={n.label}
+                title={navShut ? n.label : undefined}
               >
                 <n.icon size={19} />
                 <span>{n.label}</span>

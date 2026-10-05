@@ -10,10 +10,11 @@ A link is still validated before it is stored. Anything that is not a plain
 `https://` URL is refused, because this value ends up in an `href` that a person
 in the shop will click.
 
-Three slots exist per variant. The column names predate the slots: `url` holds
-the Shopee page, `lazada_url` the Lazada page, and `alternative_name` with
-`alternative_url` the third, which the shop names itself. The two marketplace
-slots are checked against their own hosts; the third takes any https link.
+Two slots exist per variant, and the column names predate them: `url` holds the
+Shopee page and `lazada_url` the Lazada page. Each is checked against its own
+host, so a page from the wrong marketplace cannot be filed under the other. The
+table still carries `alternative_name` and `alternative_url` from a third,
+freely named slot that was removed; nothing reads or writes them.
 """
 from urllib.parse import urlparse
 
@@ -74,9 +75,7 @@ def clean_text(value, field, limit):
 def row(entry):
     return {'variant_id': entry['variant_id'], 'sku': entry['sku'],
             'item_name': entry['item_name'], 'url': entry['url'],
-            'lazada_url': entry['lazada_url'],
-            'alternative_name': entry['alternative_name'],
-            'alternative_url': entry['alternative_url'], 'note': entry['note'],
+            'lazada_url': entry['lazada_url'], 'note': entry['note'],
             'updated_at': entry['updated_at'], 'updated_by': entry['updated_by']}
 
 
@@ -98,8 +97,6 @@ def record(user, variant_id, body):
         raise PermissionError('Only the owner or a manager can record a buying link.')
     url = clean_url(body.get('url'), 'The Shopee link')
     lazada_url = clean_url(body.get('lazada_url'), 'The Lazada link')
-    alternative_url = clean_url(body.get('alternative_url'), 'The third link')
-    alternative_name = clean_text(body.get('alternative_name'), 'The third source', MAX_NAME)
     note = clean_text(body.get('note'), 'The note', MAX_NOTE)
     if url and not from_hosts(url, SHOPEE_HOSTS):
         raise ValueError('The Shopee link has to be a shopee.ph page. '
@@ -107,21 +104,18 @@ def record(user, variant_id, body):
     if lazada_url and not from_hosts(lazada_url, LAZADA_HOSTS):
         raise ValueError('The Lazada link has to be a lazada.com.ph page. '
                          'Put a link from anywhere else in the third slot and name it.')
-    if alternative_url and not alternative_name:
-        raise ValueError('Name the third source, so a reader knows who it is.')
-    if not url and not lazada_url and not alternative_url:
+    if not url and not lazada_url:
         return remove(user, variant_id)
     with connect() as db:
         db.execute('DELETE FROM item_links WHERE variant_id=?', (variant_id,))
         db.execute('''INSERT INTO item_links(variant_id,sku,item_name,url,lazada_url,
-                        alternative_name,alternative_url,note,updated_at,updated_by)
-                      VALUES (?,?,?,?,?,?,?,?,?,?)''',
+                        note,updated_at,updated_by)
+                      VALUES (?,?,?,?,?,?,?,?)''',
                    (variant_id, clean_text(body.get('sku'), 'The SKU', MAX_NAME),
                     clean_text(body.get('item_name'), 'The item name', MAX_URL),
-                    url, lazada_url, alternative_name, alternative_url, note,
-                    now(), user['id']))
+                    url, lazada_url, note, now(), user['id']))
         audit(db, user['id'], 'item_link.recorded', variant_id,
-              url or lazada_url or alternative_url or '')
+              url or lazada_url or '')
         entry = db.execute('SELECT * FROM item_links WHERE variant_id=?', (variant_id,)).fetchone()
     return row(entry)
 
