@@ -69,3 +69,75 @@ Exact next action: establish Natural Mind Health's account/source, then collect 
 The owner asked for a document to send Moritz listing the remaining steps and clarifying the login website. Rechecked valid hosted HTTPS and Moritz's existing login/read access; seven entries/sixteen attachments remain, none human-reviewed. Created a private three-page PDF covering access, exact upload/review controls, outstanding source documents, the physical-phone check and owner responsibilities. Prepared a separate Moritz-only login TXT; no credential is embedded in the PDF and no owner password is in that TXT. Rendered and inspected all three final pages. Artifacts and private validation are under `.data/handoffs/2026-09-15-moritz/`.
 
 Corrected the stale server-pending text in the operating guide. No new email, business submission, API snapshot, model call, POS write or deployment occurred. No application tests were rerun for this document-only work; source 0be499b and CI34607921293 remain the passing code evidence, runtime e89483d. Next: owner forwards the PDF and Moritz login file, then Moritz logs in, completes the phone/upload check and supplies Natural Mind Health's source followed by the documented evidence. No shared-pilot completion or human review is claimed.
+
+## 5 October 2026 · buying ceiling for marketplace orders
+
+The owner asked for a target buy price so the person ordering knows the most
+they may pay, and said to change the till price when a listing sits above it.
+The rule is a 30% margin **taken off the till price**, confirmed by the owner
+and independently by the live catalogue: recorded cost sits at exactly 70.0% of
+the effective price at the third quartile, the median margin is 30.9%, forty
+variants sit on 70.0% and a single variant sits on the alternative markup
+reading. `server/target_price.py` computes it with no network, no stored state
+and no clock; `SH_TARGET_MARGIN` can change the share and refuses a bare `30`.
+
+The ceiling is shown only where a price is picked off a listing, which today
+means one marketplace supplier, at the owner's instruction. The gate is the buy
+link's host rather than a supplier name, so a second seller on the same
+marketplace is covered without a list to maintain; of fourteen configured
+suppliers exactly one qualifies. Where recorded cost already exceeds the
+ceiling the row also names the till price that would restore the margin. The
+figure is deliberately absent from the WhatsApp text sent to a supplier, since
+it is our margin; `orderMessage` moved to `src/ordering.ts` so a Node test can
+hold that line.
+
+A correction belongs in this log. An earlier reading of margins took
+`default_price` alone and reported two items as broken, one of them apparently
+selling at 24 against a cost of 167. The owner checked the POS: the store-level
+price is 240, and the item default is not what the shop charges. Store price
+now takes precedence over the item default in `sell_price()`, with a test. The
+two differ on 36 of 459 live variants. Recomputed against effective prices no
+negative margin exists anywhere; the thinnest real margin is 6.8% on one
+two-pack, and 51 of 226 measurable variants sit below 30%. A recorded cost of
+`0.00` is read as unrecorded rather than free; 169 variants have a price but no
+cost, so they get a ceiling with nothing to compare it against. The second item
+the owner checked was genuinely reversed and the owner corrected it in the POS;
+verified live afterwards at a 34.3% margin.
+
+Three marketplace short links supplied by the owner were resolved to their
+canonical product pages and matched to catalogue SKUs by exact brand and size,
+one of them to a single flavour variant rather than the whole item. **Prices
+could not be obtained**: the product API answers only with an anti-bot error
+and the page itself redirects to a login wall, so no price is claimed. The
+three listings are recorded by SKU in ignored `.data/supplier-config.json` and
+verified end to end through `assign()`, which returns them as `listing` rather
+than `search`.
+
+Source `943dff9` passed [CI run 37256219059](https://github.com/lokigod69/SausageHealth/actions/runs/37256219059):
+219 backend tests with 2 intentional skips, the Node suite, frontend and Docker
+builds and container smoke. Runtime is now **943dff9**, deployment
+**dpl_931tViEvqeRPjwLUzg7sAMnfJeJa**, at the ops alias. Verified signed out on
+the live host: the page returns 200, `/api/health` is ok,
+`/api/loyverse/items` returns 401 so the route exists and is authenticated, an
+unknown `/api/loyverse/*` path still returns 404, and the published bundle
+contains the new ceiling copy.
+
+**Two things did not happen.** The production `SH_LOYVERSE_SUPPLIERS` variable
+was **not** updated, so the live app still offers search links for those three
+products rather than the recorded listings; writing it was refused by this
+environment's secret-store policy and the owner has to paste the contents of
+ignored `.data/supplier-config.json` into that Production variable. Vercel will
+not disclose a Secret value, so the previous value could not be read or
+compared first. Nothing was removed: the removal was refused before it ran.
+Separately, `sos.thesausageguy.shop` still has no record of its own and only
+catches the Porkbun wildcard, which an invented hostname resolves the same way;
+`ops.` remains the live alias and `SH_ORIGIN` is unchanged.
+
+Exact next action: the owner pastes the supplier configuration into the
+Production variable and redeploys, then adds the `sos` CNAME at Porkbun before
+`SH_ORIGIN` is moved. Push notifications are still unbuilt, so the ceiling
+currently appears in the order view only; it already travels on the same
+reorder row a notification would read. Two live catalogue facts remain for the
+owner to decide: one two-pack sells at a 6.8% margin, and the superseded
+200g-pack ham and forest ham rows are still active and for sale alongside their
+replacements.
