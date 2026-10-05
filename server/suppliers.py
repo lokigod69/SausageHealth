@@ -261,8 +261,11 @@ def plan(supplier, today, cover_days):
     return result
 
 
-def assign(items, today, config=None):
-    """Supplier and reorder plan per variant and store, plus what nothing matched."""
+def assign(items, today, config=None, stored=None):
+    """Supplier and reorder plan per variant and store, plus what nothing matched.
+
+    `stored` is the shop's own recorded buying links, keyed by variant id.
+    """
     config = config if config is not None else registry()
     if not config:
         return None
@@ -282,7 +285,7 @@ def assign(items, today, config=None):
                     other = config['suppliers'][rule['alternative']]
                     entry['alternative_name'] = other['name']
                     entry['alternative_lead_days'] = other['lead_days']
-                entry.update(buying_links(config, supplier, variant, item))
+                entry.update(buying_links(config, supplier, variant, item, stored))
                 # After the links: the ceiling only applies where the price is
                 # picked off a listing, and the link is what establishes that.
                 entry.update(target_price.for_buy_link(variant, row, entry.get('buy_url')))
@@ -298,15 +301,29 @@ def assign(items, today, config=None):
             'suppliers': sorted(config['suppliers'].values(), key=lambda row: row['name'])}
 
 
-def buying_links(config, supplier, variant, item):
+def buying_links(config, supplier, variant, item, stored=None):
     """An exact listing when one is recorded, otherwise a search at that supplier.
 
     A search link is explicitly marked as a search: it finds candidates, it does
     not identify the listing the shop actually buys from.
+
+    A link the shop recorded in the app wins over one in configuration. The shop
+    can correct its own record in seconds; configuration needs a deploy, so it
+    is the staler of the two by construction.
     """
     name = (item.get('name') or '').strip()
     recorded = None
+    kept = (stored or {}).get(variant.get('variant_id'))
+    if kept and (kept.get('url') or kept.get('alternative_url')):
+        alternatives = []
+        if kept.get('alternative_url'):
+            alternatives.append({'name': kept.get('alternative_name'),
+                                 'url': kept['alternative_url'], 'note': None})
+        recorded = {'url': kept.get('url'), 'note': kept.get('note'),
+                    'alternatives': alternatives}
     for key in (variant.get('sku'), name):
+        if recorded:
+            break
         if key and str(key).strip().lower() in config.get('links', {}):
             recorded = config['links'][str(key).strip().lower()]
             break

@@ -16,6 +16,7 @@ from starlette.datastructures import UploadFile
 
 from .db import audit, branches, check_password, connect, data_dir, initialize, now, password_hash
 from . import devices
+from . import item_links
 from . import intake_ai
 from . import loyverse
 from . import storage
@@ -234,6 +235,40 @@ def user_list(user=Depends(current_user)):
     with connect() as db:
         return [{'id': row['id'], 'name': row['name'], 'role': row['role']}
                 for row in db.execute("SELECT id,name,role FROM users WHERE role!='owner' ORDER BY name")]
+
+
+class ItemLink(BaseModel):
+    """Where a product is bought. Everything is optional; clearing it removes the record."""
+    url: str | None = Field(default=None, max_length=item_links.MAX_URL)
+    alternative_name: str | None = Field(default=None, max_length=item_links.MAX_NAME)
+    alternative_url: str | None = Field(default=None, max_length=item_links.MAX_URL)
+    note: str | None = Field(default=None, max_length=item_links.MAX_NOTE)
+    sku: str | None = Field(default=None, max_length=item_links.MAX_NAME)
+    item_name: str | None = Field(default=None, max_length=item_links.MAX_URL)
+
+
+@app.get('/api/item-links')
+def item_link_list(user=Depends(current_user)):
+    """Readable by anyone who can see the catalogue; the links are not secrets."""
+    return list(item_links.listing().values())
+
+
+@app.put('/api/item-links/{variant_id}')
+def item_link_record(variant_id: str, body: ItemLink, user=Depends(current_user)):
+    try:
+        return item_links.record(user, variant_id, body.model_dump())
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
+    except ValueError as problem:
+        raise HTTPException(422, str(problem))
+
+
+@app.delete('/api/item-links/{variant_id}')
+def item_link_remove(variant_id: str, user=Depends(current_user)):
+    try:
+        return item_links.remove(user, variant_id)
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
 
 
 @app.get('/api/entries')

@@ -26,6 +26,18 @@ export type Device = {
   paired: boolean;
 };
 export type Account = { id: string; name: string; role: string };
+/** Where a product is bought, recorded by the shop in the app. */
+export type ItemLink = {
+  variant_id: string;
+  sku: string | null;
+  item_name: string | null;
+  url: string | null;
+  alternative_name: string | null;
+  alternative_url: string | null;
+  note: string | null;
+  updated_at: string;
+  updated_by: string;
+};
 export type Attachment = {
   id: string;
   name: string;

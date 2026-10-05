@@ -30,6 +30,7 @@ from fastapi import HTTPException
 
 from .db import audit, connect, data_dir, now, password_hash
 from . import performance
+from . import item_links
 from . import suppliers as supplier_rules
 
 BASE = 'https://api.loyverse.com/v1.0'
@@ -291,7 +292,8 @@ def capture():
              'decimal_places': currency.get('decimal_places') if isinstance(currency, dict) else None}
     if not isinstance(money['decimal_places'], int) or isinstance(money['decimal_places'], bool):
         money['decimal_places'] = None
-    return build(stores, categories, items, inventory, store_map(), money, sold, sales, trading), requests_made
+    return build(stores, categories, items, inventory, store_map(), money, sold, sales,
+                 trading, item_links.listing()), requests_made
 
 
 def index_stores(stores, mapping):
@@ -374,7 +376,8 @@ def option_labels(item):
             text(item.get('option3_name'))]
 
 
-def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None, trading=None):
+def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None,
+          trading=None, stored_links=None):
     store_rows, unmatched_mapping = index_stores(stores, mapping)
     levels = index_inventory(inventory)
     category_names = {}
@@ -439,7 +442,10 @@ def build(stores, categories, items, inventory, mapping, money, sold=None, sales
     # Reordering advice needs the stock and weekly rate already on each row, so it
     # runs as a second pass. Without a supplier registry there is simply no advice.
     _, offset = performance.local_zone()
-    reorder = supplier_rules.assign(built, supplier_rules.today_local(offset))
+    # The shop's own recorded links take precedence over configured ones. They are
+    # handed in rather than read here, so building a catalogue needs no database.
+    reorder = supplier_rules.assign(built, supplier_rules.today_local(offset),
+                                    stored=stored_links)
     for item_row in built:
         for variant_row in item_row['variants']:
             for store_row in variant_row['stores']:

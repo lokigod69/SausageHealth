@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Boxes,
   CircleAlert,
@@ -23,9 +23,11 @@ import {
   type LoyverseStoreRow,
   type LoyverseVariant,
   type LoyverseView,
+  type ItemLink,
   type Store,
   type User,
 } from "./api";
+import { LinkCell, LinkEditor } from "./ItemLinkEditor";
 
 type Row = {
   item: LoyverseItem;
@@ -240,6 +242,11 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sorter, setSorter] = useState<Sorter>("name");
   const [shown, setShown] = useState(PAGE);
+  const [links, setLinks] = useState<Record<string, ItemLink>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  // A manager records links because that is the person standing in the aisle;
+  // a counter tablet is paired to a manager account, so it can too.
+  const canEdit = user.role === "owner" || user.role === "manager";
 
   useEffect(() => {
     let live = true;
@@ -247,6 +254,17 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
       .then((result) => live && setView(result))
       .catch((problem) => live && setError((problem as Error).message))
       .finally(() => live && setLoading(false));
+    // A failed link read must not hide the catalogue, so it is reported and
+    // otherwise left alone: the table is still correct without the links.
+    api<ItemLink[]>("/item-links")
+      .then(
+        (rows) =>
+          live &&
+          setLinks(
+            Object.fromEntries(rows.map((row) => [row.variant_id, row])),
+          ),
+      )
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -655,6 +673,7 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                       Low at
                     </th>
                     <th scope="col">Status</th>
+                    <th scope="col">Shop link</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -662,91 +681,126 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                     const price = priceLabel(variant, storeRow, currency);
                     const options = variant.options.filter(Boolean).join(" · ");
                     return (
-                      <tr key={key}>
-                        <td data-label="Item">
-                          <span className="item-name">
-                            <strong>{item.name ?? "Unnamed item"}</strong>
-                            {options && <small>{options}</small>}
-                            <span className="item-flags">
-                              {item.sold_by_weight && (
-                                <span className="tag">By weight</span>
-                              )}
-                              {item.is_composite && (
-                                <span className="tag">Composite</span>
-                              )}
-                              {!storeRow.settings_present && (
-                                <span
-                                  className="tag"
-                                  title="Loyverse returned no settings for this variant in this store."
-                                >
-                                  No store settings
-                                </span>
-                              )}
+                      <Fragment key={key}>
+                        <tr>
+                          <td data-label="Item">
+                            <span className="item-name">
+                              <strong>{item.name ?? "Unnamed item"}</strong>
+                              {options && <small>{options}</small>}
+                              <span className="item-flags">
+                                {item.sold_by_weight && (
+                                  <span className="tag">By weight</span>
+                                )}
+                                {item.is_composite && (
+                                  <span className="tag">Composite</span>
+                                )}
+                                {!storeRow.settings_present && (
+                                  <span
+                                    className="tag"
+                                    title="Loyverse returned no settings for this variant in this store."
+                                  >
+                                    No store settings
+                                  </span>
+                                )}
+                              </span>
                             </span>
-                          </span>
-                        </td>
-                        <td data-label="SKU">
-                          <span className="mono">{variant.sku ?? "—"}</span>
-                          {variant.barcode && (
-                            <small className="mono muted">
-                              {variant.barcode}
-                            </small>
-                          )}
-                        </td>
-                        <td data-label="Category">
-                          {item.category_name ?? (
-                            <span className="unknown-value">No category</span>
-                          )}
-                        </td>
-                        {showStore && (
-                          <td data-label="Store">
-                            {storeRow.store_name ?? "Unnamed store"}
-                            {!storeRow.workspace_store && (
-                              <small className="unknown-value">Unmapped</small>
+                          </td>
+                          <td data-label="SKU">
+                            <span className="mono">{variant.sku ?? "—"}</span>
+                            {variant.barcode && (
+                              <small className="mono muted">
+                                {variant.barcode}
+                              </small>
                             )}
                           </td>
+                          <td data-label="Category">
+                            {item.category_name ?? (
+                              <span className="unknown-value">No category</span>
+                            )}
+                          </td>
+                          {showStore && (
+                            <td data-label="Store">
+                              {storeRow.store_name ?? "Unnamed store"}
+                              {!storeRow.workspace_store && (
+                                <small className="unknown-value">
+                                  Unmapped
+                                </small>
+                              )}
+                            </td>
+                          )}
+                          <td
+                            data-label="Price"
+                            className="numeric"
+                            title={price.hint}
+                          >
+                            {price.text}
+                          </td>
+                          <td data-label="Cost" className="numeric">
+                            {variant.cost === null ? (
+                              <span className="unknown-value">
+                                Not recorded
+                              </span>
+                            ) : (
+                              money(variant.cost, currency)
+                            )}
+                          </td>
+                          <td data-label="Per week" className="numeric">
+                            <WeeklyCell
+                              store={storeRow}
+                              sales={catalogue.sales}
+                            />
+                          </td>
+                          <td data-label="In stock" className="numeric">
+                            <StockCell store={storeRow} />
+                          </td>
+                          <td data-label="Optimal" className="numeric">
+                            {storeRow.optimal_stock === null ? (
+                              <span className="unknown-value">Not set</span>
+                            ) : (
+                              quantity(storeRow.optimal_stock)
+                            )}
+                          </td>
+                          <td data-label="Low at" className="numeric">
+                            {storeRow.low_stock === null ? (
+                              <span className="unknown-value">Not set</span>
+                            ) : (
+                              quantity(storeRow.low_stock)
+                            )}
+                          </td>
+                          <td data-label="Status">
+                            <RowStatus store={storeRow} />
+                          </td>
+                          <td data-label="Shop link">
+                            <LinkCell
+                              link={links[variant.variant_id]}
+                              canEdit={canEdit}
+                              onEdit={() => setEditing(variant.variant_id)}
+                            />
+                          </td>
+                        </tr>
+                        {editing === variant.variant_id && (
+                          <tr className="link-editor-row">
+                            <td colSpan={showStore ? 12 : 11}>
+                              <LinkEditor
+                                variantId={variant.variant_id}
+                                sku={variant.sku}
+                                itemName={item.name}
+                                link={links[variant.variant_id]}
+                                onCancel={() => setEditing(null)}
+                                onSaved={(saved) => {
+                                  setLinks((current) => {
+                                    const next = { ...current };
+                                    if (saved) next[variant.variant_id] = saved;
+                                    else delete next[variant.variant_id];
+                                    return next;
+                                  });
+                                  setEditing(null);
+                                }}
+                              />
+                            </td>
+                          </tr>
                         )}
-                        <td
-                          data-label="Price"
-                          className="numeric"
-                          title={price.hint}
-                        >
-                          {price.text}
-                        </td>
-                        <td data-label="Cost" className="numeric">
-                          {variant.cost === null ? (
-                            <span className="unknown-value">Not recorded</span>
-                          ) : (
-                            money(variant.cost, currency)
-                          )}
-                        </td>
-                        <td data-label="Per week" className="numeric">
-                          <WeeklyCell
-                            store={storeRow}
-                            sales={catalogue.sales}
-                          />
-                        </td>
-                        <td data-label="In stock" className="numeric">
-                          <StockCell store={storeRow} />
-                        </td>
-                        <td data-label="Optimal" className="numeric">
-                          {storeRow.optimal_stock === null ? (
-                            <span className="unknown-value">Not set</span>
-                          ) : (
-                            quantity(storeRow.optimal_stock)
-                          )}
-                        </td>
-                        <td data-label="Low at" className="numeric">
-                          {storeRow.low_stock === null ? (
-                            <span className="unknown-value">Not set</span>
-                          ) : (
-                            quantity(storeRow.low_stock)
-                          )}
-                        </td>
-                        <td data-label="Status">
-                          <RowStatus store={storeRow} />
-                        </td>
-                      </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>

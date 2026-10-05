@@ -158,6 +158,11 @@ def initialize():
           created_by TEXT NOT NULL REFERENCES users(id), last_seen TEXT, revoked_at TEXT,
           pairing_hash TEXT, pairing_expires DOUBLE PRECISION, attempts INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS item_links (
+          variant_id TEXT PRIMARY KEY, sku TEXT, item_name TEXT, url TEXT,
+          alternative_name TEXT, alternative_url TEXT, note TEXT,
+          updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
+        );
         PRAGMA user_version=1;
         ''')
 
