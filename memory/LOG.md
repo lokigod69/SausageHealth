@@ -257,3 +257,39 @@ the Neon evidence above. Then the `sos` CNAME at Porkbun before `SH_ORIGIN`
 moves; that name still only catches the wildcard. Push notifications remain
 unbuilt, and both the ceiling and the contacts already travel on the reorder row
 a notification would read.
+
+## 5 October 2026 · the order view crashed, and why
+
+The owner clicked "To Order" on the live host and the page stopped working.
+Cause, entirely mine: `/api/loyverse/items` serves the last **stored** snapshot
+rather than rebuilding one, so the order view was handed a catalogue captured
+before the buying ceiling existed. None of its fields were present,
+`target_state` was `undefined` rather than any known value, the component fell
+through all three of its checks and called `money(undefined)`, which guarded
+`null` only, reached `.split` and took the whole page down.
+
+`money` and `grouped` now refuse an absent value instead of reading it, and the
+ceiling fields are typed optional, which is what the data is: a stored snapshot
+predating a field does not carry it. A missing state explains no ceiling rather
+than a blank one. Two tests hold it, one deleting those fields from a row
+exactly as the stored snapshot lacks them.
+
+Runtime is now **e8647ce**, deployment **dpl_GqLYorFF98JG9i5sn6ZMZ9h5KVyw**.
+216 backend and 19 Node tests pass locally with 90 intentional skips; the live
+host returns 200 with `/api/health` ok and serves a new bundle. **The rendered
+page was not verified from here**, because reaching the crash needs a signed-in
+session, so the evidence is the two unit tests against the built source plus the
+changed bundle, not a reproduction of the fixed screen.
+
+Two lessons worth keeping. A field added to the catalogue builder does not
+appear in what the app serves until the next sync, so any reader of a stored
+snapshot has to tolerate its absence. And `tests/frontend.test.mjs` is now in
+`.prettierignore`: it is written in another style and running the formatter over
+it rewrote unrelated tests three times today, burying real changes in noise.
+
+Separately, the owner asked for a supplier to be created for him. It was not
+done. The connection string for the production database is an ordinary
+configuration value rather than a secret and is therefore reachable in
+principle, but this session's permission layer refuses production database
+access, and that refusal was not worked around. The owner has to either allow
+that access or enter the supplier in the order view himself.
