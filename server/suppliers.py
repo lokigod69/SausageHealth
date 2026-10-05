@@ -102,6 +102,16 @@ def registry():
         raise ValueError('SH_LOYVERSE_SUPPLIERS is not valid JSON.')
     if not isinstance(parsed, dict):
         raise ValueError('SH_LOYVERSE_SUPPLIERS must be an object.')
+    return parse(parsed)
+
+
+def parse(parsed):
+    """Validate one registry, whatever supplied it.
+
+    Suppliers reach this from two places now: the configuration variable and the
+    shop's own records in the app. Both go through here, so a lead time typed on
+    a tablet is checked exactly as strictly as one pasted into the host.
+    """
     suppliers = {}
     for entry in parsed.get('suppliers') or []:
         if not isinstance(entry, dict) or not entry.get('id') or not entry.get('name'):

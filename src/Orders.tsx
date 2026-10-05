@@ -18,6 +18,7 @@ import {
   type LoyverseView,
   type Reorder,
   type Store,
+  type User,
 } from "./api";
 import {
   groupMargin,
@@ -26,6 +27,7 @@ import {
   percentLabel,
   type Group,
 } from "./ordering";
+import { Suppliers } from "./Suppliers";
 
 /** The ceiling the person ordering has to stay under, and what to do if they cannot.
  *
@@ -115,7 +117,7 @@ function Channels({ group, message }: { group: Group; message: string }) {
   );
 }
 
-export function Orders({ scope }: { scope: Store }) {
+export function Orders({ user, scope }: { user: User; scope: Store }) {
   const [view, setView] = useState<LoyverseView | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -357,6 +359,7 @@ export function Orders({ scope }: { scope: Store }) {
         </div>
       )}
 
+      <Suppliers canEdit={user.role === "owner" || user.role === "manager"} />
       <div className="items-limits">
         <h3>
           <CircleHelp size={15} /> How these quantities are worked out

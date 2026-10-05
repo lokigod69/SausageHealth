@@ -17,6 +17,7 @@ from starlette.datastructures import UploadFile
 from .db import audit, branches, check_password, connect, data_dir, initialize, now, password_hash
 from . import devices
 from . import item_links
+from . import shop_suppliers
 from . import intake_ai
 from . import loyverse
 from . import storage
@@ -268,6 +269,48 @@ def item_link_record(variant_id: str, body: ItemLink, user=Depends(current_user)
 def item_link_remove(variant_id: str, user=Depends(current_user)):
     try:
         return item_links.remove(user, variant_id)
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
+
+
+class ShopSupplier(BaseModel):
+    """A supplier the shop records itself, added to the configured ones."""
+    name: str = Field(min_length=2, max_length=shop_suppliers.MAX_NAME)
+    id: str | None = Field(default=None, max_length=40)
+    lead_min: int | None = Field(default=None, ge=0, le=365)
+    lead_max: int | None = Field(default=None, ge=0, le=365)
+    buffer_days: int | None = Field(default=None, ge=0, le=90)
+    order_weekday: str | None = Field(default=None, max_length=12)
+    delivery_weekday: str | None = Field(default=None, max_length=12)
+    week_offset: int | None = Field(default=None, ge=0, le=8)
+    whatsapp: str | None = Field(default=None, max_length=32)
+    viber: str | None = Field(default=None, max_length=32)
+    messenger: str | None = Field(default=None, max_length=300)
+    person: str | None = Field(default=None, max_length=60)
+    note: str | None = Field(default=None, max_length=shop_suppliers.MAX_NOTE)
+    match_names: str | None = Field(default=None, max_length=8000)
+    match_categories: str | None = Field(default=None, max_length=4000)
+
+
+@app.get('/api/shop-suppliers')
+def shop_supplier_list(user=Depends(current_user)):
+    return shop_suppliers.listing()
+
+
+@app.put('/api/shop-suppliers')
+def shop_supplier_record(body: ShopSupplier, user=Depends(current_user)):
+    try:
+        return shop_suppliers.record(user, body.model_dump())
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
+    except ValueError as problem:
+        raise HTTPException(422, str(problem))
+
+
+@app.delete('/api/shop-suppliers/{supplier_id}')
+def shop_supplier_remove(supplier_id: str, user=Depends(current_user)):
+    try:
+        return shop_suppliers.remove(user, supplier_id)
     except PermissionError as refusal:
         raise HTTPException(403, str(refusal))
 

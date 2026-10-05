@@ -26,6 +26,26 @@ export type Device = {
   paired: boolean;
 };
 export type Account = { id: string; name: string; role: string };
+/** A supplier the shop recorded itself, added to the configured ones. */
+export type ShopSupplier = {
+  id: string;
+  name: string;
+  lead_min: number | null;
+  lead_max: number | null;
+  buffer_days: number | null;
+  order_weekday: string | null;
+  delivery_weekday: string | null;
+  week_offset: number | null;
+  whatsapp: string | null;
+  viber: string | null;
+  messenger: string | null;
+  person: string | null;
+  note: string | null;
+  match_names: string | null;
+  match_categories: string | null;
+  updated_at: string;
+  updated_by: string;
+};
 /** Where a product is bought, recorded by the shop in the app. */
 export type ItemLink = {
   variant_id: string;

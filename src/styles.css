@@ -4870,3 +4870,59 @@ legend {
 .button.ghost.danger {
   color: #d98b7a;
 }
+
+.supplier-panel {
+  margin-top: 22px;
+}
+.supplier-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+}
+.supplier-toggle .order-count {
+  margin-left: auto;
+}
+.supplier-toggle .turned {
+  transform: rotate(180deg);
+}
+.supplier-list {
+  list-style: none;
+  margin: 6px 0 14px;
+  padding: 0;
+}
+.supplier-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.supplier-list strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.supplier-list small {
+  font-size: 11px;
+  color: var(--faint);
+}
+.supplier-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+.link-editor-fields textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+}

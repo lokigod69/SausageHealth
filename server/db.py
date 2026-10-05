@@ -163,6 +163,13 @@ def initialize():
           lazada_url TEXT, alternative_name TEXT, alternative_url TEXT, note TEXT,
           updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
         );
+        CREATE TABLE IF NOT EXISTS shop_suppliers (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL, lead_min INTEGER, lead_max INTEGER,
+          buffer_days INTEGER, order_weekday TEXT, delivery_weekday TEXT, week_offset INTEGER,
+          whatsapp TEXT, viber TEXT, messenger TEXT, person TEXT, note TEXT,
+          match_names TEXT, match_categories TEXT,
+          updated_at TEXT NOT NULL, updated_by TEXT NOT NULL REFERENCES users(id)
+        );
         PRAGMA user_version=1;
         ''')
         add_column(db, 'item_links', 'lazada_url', 'TEXT')

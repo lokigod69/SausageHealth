@@ -31,6 +31,7 @@ from fastapi import HTTPException
 from .db import audit, connect, data_dir, now, password_hash
 from . import performance
 from . import item_links
+from . import shop_suppliers
 from . import suppliers as supplier_rules
 
 BASE = 'https://api.loyverse.com/v1.0'
@@ -293,7 +294,8 @@ def capture():
     if not isinstance(money['decimal_places'], int) or isinstance(money['decimal_places'], bool):
         money['decimal_places'] = None
     return build(stores, categories, items, inventory, store_map(), money, sold, sales,
-                 trading, item_links.listing()), requests_made
+                 trading, item_links.listing(),
+                 shop_suppliers.merged(supplier_rules.registry())), requests_made
 
 
 def index_stores(stores, mapping):
@@ -377,7 +379,7 @@ def option_labels(item):
 
 
 def build(stores, categories, items, inventory, mapping, money, sold=None, sales=None,
-          trading=None, stored_links=None):
+          trading=None, stored_links=None, registry=None):
     store_rows, unmatched_mapping = index_stores(stores, mapping)
     levels = index_inventory(inventory)
     category_names = {}
@@ -445,7 +447,7 @@ def build(stores, categories, items, inventory, mapping, money, sold=None, sales
     # The shop's own recorded links take precedence over configured ones. They are
     # handed in rather than read here, so building a catalogue needs no database.
     reorder = supplier_rules.assign(built, supplier_rules.today_local(offset),
-                                    stored=stored_links)
+                                    config=registry, stored=stored_links)
     for item_row in built:
         for variant_row in item_row['variants']:
             for store_row in variant_row['stores']:

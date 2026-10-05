@@ -1633,7 +1633,7 @@ export default function App() {
                 message ready to send. Quantities come from recent sales and the
                 supplier's lead time.
               </p>
-              <Orders scope={scope} />
+              <Orders user={user} scope={scope} />
             </>
           )}
 
