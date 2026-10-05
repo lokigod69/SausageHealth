@@ -175,3 +175,111 @@ def test_a_recorded_supplier_can_replace_a_configured_one_by_reusing_its_id(env,
 def test_no_records_leaves_the_configured_registry_exactly_as_it_was(env, monkeypatch):
     monkeypatch.setenv('SH_LOYVERSE_SUPPLIERS', json.dumps(CONFIGURED))
     assert shop_suppliers.merged(suppliers.registry()) == suppliers.registry()
+
+
+# ---------------------------------------------------------------- bulk import
+def post(c, payload):
+    import json as encoder
+    return c.post('/api/shop-suppliers/import',
+                  json={'text': payload if isinstance(payload, str) else encoder.dumps(payload)})
+
+
+LIST = {
+    'suppliers': [
+        {'id': 'dairy-farm', 'name': 'Dairy Farm', 'lead_days': 1,
+         'contact': {'whatsapp': '+63 900 000 0000', 'person': 'Ana'}},
+        {'id': 'weekly-co', 'name': 'Weekly Co', 'buffer_days': 2,
+         'cycle': {'order_weekday': 'thursday', 'delivery_weekday': 'friday',
+                   'week_offset': 0}},
+    ],
+    'rules': [
+        {'match': {'name_contains': 'Kefir'}, 'supplier': 'dairy-farm'},
+        {'match': {'name_contains': 'Pistachio'}, 'supplier': 'dairy-farm'},
+        {'match': {'category': 'Cold Cuts'}, 'supplier': 'weekly-co'},
+    ],
+}
+
+
+def test_a_whole_list_arrives_in_one_paste(env):
+    owner = client()
+    result = post(owner, LIST)
+    assert result.status_code == 200
+    rows = {entry['id']: entry for entry in result.json()}
+    assert set(rows) == {'dairy-farm', 'weekly-co'}
+    assert rows['dairy-farm']['whatsapp'] == '639000000000'
+    assert rows['dairy-farm']['match_names'] == 'kefir\npistachio'
+    assert rows['weekly-co']['order_weekday'] == 'thursday'
+    assert rows['weekly-co']['delivery_weekday'] == 'friday'
+    assert rows['weekly-co']['buffer_days'] == 2
+
+
+def test_an_imported_supplier_reaches_the_reorder_plan(env, monkeypatch):
+    post(client(), LIST)
+    monkeypatch.delenv('SH_LOYVERSE_SUPPLIERS', raising=False)
+    registry = shop_suppliers.merged(None)
+    rule = suppliers.match(registry['rules'], 'Kefir Homemade', 'Cheese & Dairy')
+    assert registry['suppliers'][rule['supplier']]['name'] == 'Dairy Farm'
+    assert registry['suppliers']['dairy-farm']['contact']['person'] == 'Ana'
+
+
+def test_nothing_is_written_when_one_supplier_in_the_list_is_rejected(env):
+    owner = client()
+    broken = {'suppliers': LIST['suppliers'] + [{'id': 'nope', 'name': 'No Lead Time'}],
+              'rules': LIST['rules']}
+    assert post(owner, broken).status_code == 422
+    # The two good ones were in the same paste and must not have landed.
+    assert owner.get('/api/shop-suppliers').json() == []
+
+
+def test_a_field_this_cannot_store_is_refused_by_name_not_dropped(env):
+    owner = client()
+    withsearch = {'suppliers': [dict(LIST['suppliers'][0],
+                                     search_url='https://example.com/s?q={query}')],
+                  'rules': []}
+    refused = post(owner, withsearch)
+    assert refused.status_code == 422
+    assert 'search link' in refused.json()['detail']
+    assert 'Dairy Farm' in refused.json()['detail']
+
+
+def test_an_exact_name_rule_is_refused_rather_than_widened(env):
+    # Widening it to a fragment would quietly claim items it never matched.
+    exact = {'suppliers': [LIST['suppliers'][0]],
+             'rules': [{'match': {'name_exact': 'Kefir Homemade'}, 'supplier': 'dairy-farm'}]}
+    refused = post(client(), exact)
+    assert refused.status_code == 422 and 'exact name' in refused.json()['detail']
+
+
+def test_text_that_is_not_json_says_so_plainly(env):
+    refused = post(client(), 'suppliers: dairy farm, one day')
+    assert refused.status_code == 422 and 'valid JSON' in refused.json()['detail']
+
+
+def test_an_object_with_no_suppliers_is_refused(env):
+    assert post(client(), {'rules': []}).status_code == 422
+
+
+def test_importing_twice_replaces_rather_than_duplicates(env):
+    owner = client()
+    post(owner, LIST)
+    post(owner, LIST)
+    assert len(owner.get('/api/shop-suppliers').json()) == 2
+
+
+def test_an_import_leaves_suppliers_it_does_not_mention_alone(env):
+    owner = client()
+    # Under its own name: the same name would be a replacement, not an extra.
+    owner.put('/api/shop-suppliers', json={'name': 'Butcher In Town', 'lead_min': 9})
+    post(owner, LIST)
+    assert len(owner.get('/api/shop-suppliers').json()) == 3
+
+
+def test_a_shop_floor_account_cannot_import(env):
+    assert post(client('staff@test.local'), LIST).status_code == 403
+
+
+def test_every_imported_supplier_is_written_to_the_audit_trail(env):
+    owner = client()
+    post(owner, LIST)
+    actions = [row['action'] for row in owner.get('/api/audit').json()]
+    assert actions.count('supplier.imported') == 2

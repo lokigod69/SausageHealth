@@ -47,6 +47,8 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
   const [form, setForm] = useState<typeof EMPTY | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [paste, setPaste] = useState<string | null>(null);
+  const [imported, setImported] = useState("");
 
   async function load() {
     try {
@@ -88,6 +90,28 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
       });
       setForm(null);
       await load();
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** One paste for a whole list, so nobody types suppliers in one at a time. */
+  async function importAll(event: FormEvent) {
+    event.preventDefault();
+    if (!paste) return;
+    setError("");
+    setImported("");
+    setBusy(true);
+    try {
+      const rows = await api<ShopSupplier[]>("/shop-suppliers/import", {
+        method: "POST",
+        body: JSON.stringify({ text: paste }),
+      });
+      setRows(rows);
+      setPaste(null);
+      setImported(`${rows.length} suppliers are now recorded here.`);
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -177,13 +201,55 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
             </ul>
           )}
           {error && <div className="error-note">{error}</div>}
-          {canEdit && !form && (
-            <button
-              className="button secondary"
-              onClick={() => setForm({ ...EMPTY })}
-            >
-              Add a supplier
-            </button>
+          {imported && <p className="small-text">{imported}</p>}
+          {canEdit && !form && paste === null && (
+            <div className="link-editor-actions">
+              <button
+                className="button secondary"
+                onClick={() => setForm({ ...EMPTY })}
+              >
+                Add a supplier
+              </button>
+              <button className="button ghost" onClick={() => setPaste("")}>
+                Import a list
+              </button>
+            </div>
+          )}
+          {paste !== null && (
+            <form className="link-editor" onSubmit={importAll}>
+              <label>
+                Paste a supplier list
+                <textarea
+                  value={paste}
+                  onChange={(event) => setPaste(event.target.value)}
+                  rows={8}
+                  placeholder={'{"suppliers": [...], "rules": [...]}'}
+                  autoFocus
+                />
+              </label>
+              <p className="small-text muted">
+                The same shape the deployment's configuration uses, so a list
+                can be prepared once and pasted here. Nothing is written unless
+                every supplier in it is accepted, and anything this cannot store
+                is refused by name rather than quietly dropped.
+              </p>
+              {error && <div className="error-note">{error}</div>}
+              <div className="link-editor-actions">
+                <button className="button secondary" disabled={busy}>
+                  {busy ? "Importing…" : "Import"}
+                </button>
+                <button
+                  className="button ghost"
+                  type="button"
+                  onClick={() => {
+                    setPaste(null);
+                    setError("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           )}
           {form && (
             <form className="link-editor" onSubmit={save}>

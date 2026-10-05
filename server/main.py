@@ -307,6 +307,21 @@ def shop_supplier_record(body: ShopSupplier, user=Depends(current_user)):
         raise HTTPException(422, str(problem))
 
 
+class SupplierImport(BaseModel):
+    """Several suppliers at once, in the shape the configuration variable uses."""
+    text: str = Field(min_length=2, max_length=60000)
+
+
+@app.post('/api/shop-suppliers/import')
+def shop_supplier_import(body: SupplierImport, user=Depends(current_user)):
+    try:
+        return shop_suppliers.import_many(user, body.text)
+    except PermissionError as refusal:
+        raise HTTPException(403, str(refusal))
+    except ValueError as problem:
+        raise HTTPException(422, str(problem))
+
+
 @app.delete('/api/shop-suppliers/{supplier_id}')
 def shop_supplier_remove(supplier_id: str, user=Depends(current_user)):
     try:

@@ -157,6 +157,81 @@ def record(user, body):
     return row(saved)
 
 
+def from_parsed(supplier, own_rules):
+    """One validated supplier, back as the row this table holds.
+
+    Anything this table cannot hold is refused by name rather than dropped. An
+    import that silently loses a search link or an alternative source would
+    leave the shop with a supplier that looks right and orders from nowhere.
+    """
+    for field, label in (('search_url', 'a search link'),
+                         ('alternatives', 'alternative sources')):
+        if supplier.get(field):
+            raise ValueError(
+                f"'{supplier['name']}' carries {label}, which this import cannot store. "
+                'Leave that supplier in the hosting configuration, where it already works.')
+    names, categories = [], []
+    for rule in own_rules:
+        if rule['name_exact']:
+            raise ValueError(
+                f"A rule for '{supplier['name']}' matches an exact name, which this import "
+                'cannot store. Use a name fragment instead, or leave it in configuration.')
+        if rule['alternative']:
+            raise ValueError(
+                f"A rule for '{supplier['name']}' names a second supplier to fall back on, "
+                'which this import cannot store. Leave it in configuration.')
+        if rule['name_contains']:
+            names.append(rule['name_contains'])
+        if rule['category']:
+            categories.append(rule['category'])
+    cycle = supplier.get('cycle')
+    lead = supplier.get('lead_days')
+    return {
+        'id': supplier['id'], 'name': supplier['name'],
+        'lead_min': lead['min'] if lead else None,
+        'lead_max': lead['max'] if lead else None,
+        'buffer_days': supplier.get('buffer_days') or 0,
+        'order_weekday': rules.WEEKDAYS[cycle['order_weekday']] if cycle else None,
+        'delivery_weekday': rules.WEEKDAYS[cycle['delivery_weekday']] if cycle else None,
+        'week_offset': cycle['week_offset'] if cycle else 0,
+        'whatsapp': supplier['contact']['whatsapp'], 'viber': supplier['contact']['viber'],
+        'messenger': supplier['contact']['messenger'],
+        'person': supplier['contact']['person'], 'note': supplier.get('note'),
+        'match_names': '\n'.join(names) or None,
+        'match_categories': '\n'.join(categories) or None,
+    }
+
+
+def import_many(user, text):
+    """Several suppliers at once, in the shape the configuration variable uses.
+
+    This exists so nobody has to type a list of suppliers in by hand. It is the
+    same validation as a single record, because the payload is parsed as a
+    registry first; nothing is written unless every supplier in it is accepted.
+    """
+    import json
+    if user['role'] not in MAY_RECORD:
+        raise PermissionError('Only the owner or a manager can import suppliers.')
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        raise ValueError('That is not valid JSON. Paste the whole object, braces included.')
+    if not isinstance(payload, dict) or not payload.get('suppliers'):
+        raise ValueError('The object needs a "suppliers" list.')
+    parsed = rules.parse(payload)
+    entries = [from_parsed(supplier, [rule for rule in parsed['rules']
+                                      if rule['supplier'] == supplier['id']])
+               for supplier in parsed['suppliers'].values()]
+    with connect() as db:
+        for entry in entries:
+            db.execute('DELETE FROM shop_suppliers WHERE id=?', (entry['id'],))
+            db.execute(f'''INSERT INTO shop_suppliers(id,{",".join(FIELDS)},updated_at,updated_by)
+                           VALUES ({",".join("?" * (len(FIELDS) + 3))})''',
+                       (entry['id'], *(entry[key] for key in FIELDS), now(), user['id']))
+            audit(db, user['id'], 'supplier.imported', entry['id'], entry['name'])
+    return listing()
+
+
 def remove(user, supplier_id):
     if user['role'] not in MAY_RECORD:
         raise PermissionError('Only the owner or a manager can remove a supplier.')
