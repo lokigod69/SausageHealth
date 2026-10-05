@@ -4629,3 +4629,98 @@ legend {
   display: inline;
   color: var(--accent);
 }
+
+.order-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.order-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.order-card.settled {
+  opacity: 0.55;
+}
+.order-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.order-card h2 {
+  font-size: 21px;
+}
+.order-card header small {
+  display: block;
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 3px;
+}
+.order-count {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--mint);
+}
+.order-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+.order-card li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.order-card li strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+}
+.order-card li small {
+  display: block;
+  font-size: 10px;
+}
+.order-message {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  color: var(--muted);
+  max-height: 180px;
+  overflow: auto;
+}
+.order-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.order-channels .button {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 46px;
+}
+@media (max-width: 720px) {
+  .order-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .order-card {
+    padding: 16px 15px;
+  }
+}

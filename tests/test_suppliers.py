@@ -249,3 +249,53 @@ def test_a_search_template_without_a_query_placeholder_is_refused(monkeypatch):
     with pytest.raises(ValueError):
         suppliers.registry()
 
+
+def test_the_suggested_quantity_tops_the_shelf_up_to_the_cover_period(monkeypatch):
+    config = configured(monkeypatch)
+    # Seven a week over a two day lead is two days of demand, so a shelf holding
+    # one needs one more. Fractions round up: you cannot order half a sausage.
+    result = suppliers.assign([item(name='Bratwurst', rows=[row(in_stock='1', per_week='7')])],
+                              date(2026, 9, 16), config)
+    assert result['assignments'][('v1', 'store-a')]['suggested_order'] == 1
+    plenty = suppliers.assign([item(name='Bratwurst', rows=[row(in_stock='50', per_week='7')])],
+                              date(2026, 9, 16), config)
+    # Already above the cover period: nothing to add rather than a negative number.
+    assert plenty['assignments'][('v1', 'store-a')]['suggested_order'] is None
+
+
+def test_a_cycle_supplier_is_topped_up_for_the_whole_cycle(monkeypatch):
+    config = configured(monkeypatch)
+    # Sixteen days of cover at one a day, with an empty shelf.
+    result = suppliers.assign([item(category='Cold Cuts', rows=[row(in_stock='0', per_week='7')])],
+                              date(2026, 9, 16), config)
+    assert result['assignments'][('v1', 'store-a')]['suggested_order'] == 16
+
+
+def test_no_quantity_is_guessed_from_a_missing_figure(monkeypatch):
+    config = configured(monkeypatch)
+    for rows in ([row(state='not_tracked')], [row(in_stock=None)], [row(per_week=None)],
+                 [row(per_week='0')]):
+        result = suppliers.assign([item(name='Bratwurst', rows=rows)], date(2026, 9, 16), config)
+        assert result['assignments'][('v1', 'store-a')]['suggested_order'] is None
+
+
+def test_contact_numbers_are_digits_only_so_a_link_cannot_break(monkeypatch):
+    config = configured(monkeypatch, dict(CONFIG, suppliers=[
+        dict(CONFIG['suppliers'][0], contact={'whatsapp': '+63 917 000 0000',
+                                              'person': 'Order desk'}),
+        *CONFIG['suppliers'][1:]]))
+    # Written with a plus and spaces, stored as digits for the link.
+    assert config['suppliers']['fast']['contact']['whatsapp'] == '639170000000'
+    result = suppliers.assign([item(name='Bratwurst')], date(2026, 9, 16), config)
+    contact = result['assignments'][('v1', 'store-a')]['contact']
+    assert contact['person'] == 'Order desk'
+
+
+def test_a_malformed_contact_number_is_refused(monkeypatch):
+    import json as _json
+    for bad in ('not-a-number', '12', 'javascript:alert(1)', '1' * 30):
+        monkeypatch.setenv('SH_LOYVERSE_SUPPLIERS', _json.dumps(dict(CONFIG, suppliers=[
+            dict(CONFIG['suppliers'][0], contact={'whatsapp': bad}), *CONFIG['suppliers'][1:]])))
+        with pytest.raises(ValueError):
+            suppliers.registry()
+

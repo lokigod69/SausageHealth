@@ -18,6 +18,7 @@ Honesty rules that the rest of the app depends on:
 """
 import json
 import os
+import re
 import secrets
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -128,6 +129,8 @@ def get_pages(client, path, key, params=None):
             raise HTTPException(429, 'Loyverse is rate limiting this account. Wait a few minutes before refreshing again.')
         if response.status_code in (401, 403):
             raise HTTPException(502, 'Loyverse refused the stored access credential. Ask the technical owner to check it.')
+        if response.status_code == 402:
+            raise HistoryLimited(allowed_days(response.text))
         response.raise_for_status()
         body = json.loads(response.content, parse_float=Decimal)
         batch = body.get(key) if isinstance(body, dict) else None
@@ -140,6 +143,20 @@ def get_pages(client, path, key, params=None):
             return results, pages
         if pages >= MAX_PAGES:
             raise ValueError('This catalogue is larger than the bounded reader supports: ' + key)
+
+
+class HistoryLimited(Exception):
+    """The account's plan does not reach as far back as was asked for."""
+
+    def __init__(self, days):
+        super().__init__(f'Receipt history is limited to {days} days on this plan.')
+        self.days = days
+
+
+def allowed_days(body):
+    """How far back the plan does reach, read from the refusal rather than guessed."""
+    found = re.search(r'earlier than (\d{1,4}) days', body or '')
+    return int(found.group(1)) if found else 30
 
 
 def history_days():
@@ -249,11 +266,25 @@ def capture():
         # One fetch serves both: the weekly column slices the window out of it,
         # and the dashboard uses the whole history. Receipts are filtered on
         # created_at but counted by receipt_date, and late uploads happen here.
-        receipts, pages = get_pages(client, '/receipts', 'receipts', {
-            'created_at_min': stamp(end - timedelta(days=history_days())),
-            'created_at_max': stamp(end)})
+        asked = history_days()
+        history_cap = None
+        try:
+            receipts, pages = get_pages(client, '/receipts', 'receipts', {
+                'created_at_min': stamp(end - timedelta(days=asked)),
+                'created_at_max': stamp(end)})
+        except HistoryLimited as limit:
+            # Read what the plan does allow rather than losing the whole sync.
+            history_cap = limit.days
+            receipts, pages = get_pages(client, '/receipts', 'receipts', {
+                'created_at_min': stamp(end - timedelta(days=max(1, limit.days - 1))),
+                'created_at_max': stamp(end)})
         requests_made += pages
+    if history_cap is not None and sales_days() > history_cap:
+        # The weekly window cannot be wider than the history the plan allows.
+        start = end - timedelta(days=max(7, (history_cap - 1) // 7 * 7))
     sold, sales = aggregate_sales(receipts, start, end)
+    sales['requested_days'] = asked
+    sales['plan_limit_days'] = history_cap
     trading = performance.build(receipts, [store['id'] for store in stores if store.get('id')])
     currency = profile.get('currency') if isinstance(profile, dict) else None
     money = {'code': text(currency.get('code')) if isinstance(currency, dict) else None,

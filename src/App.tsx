@@ -62,6 +62,7 @@ import {
 } from "./api";
 
 import { Items } from "./Items";
+import { Orders } from "./Orders";
 import { PerformancePage } from "./Performance";
 import { Journey, NextStep } from "./Journey";
 
@@ -69,6 +70,7 @@ type Page =
   | "overview"
   | "collection"
   | "items"
+  | "orders"
   | "performance"
   | "stores"
   | "roadmap"
@@ -78,6 +80,12 @@ const navItems = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "collection", label: "Collection", icon: BookOpen },
   { id: "items", label: "Items", icon: Package, roles: ["owner", "manager"] },
+  {
+    id: "orders",
+    label: "To order",
+    icon: ClipboardList,
+    roles: ["owner", "manager"],
+  },
   {
     id: "performance",
     label: "Performance",
@@ -1060,6 +1068,7 @@ export default function App() {
       : {
           collection: "Collection",
           items: "Items",
+          orders: "To order",
           performance: "Performance",
           stores: "Branches",
           roadmap: "Roadmap",
@@ -1560,6 +1569,17 @@ export default function App() {
                 till: nothing here changes the POS.
               </p>
               <Items user={user} scope={scope} />
+            </>
+          )}
+
+          {page === "orders" && user.role !== "staff" && (
+            <>
+              <p className="page-intro">
+                What has to be ordered now, grouped by supplier, with the
+                message ready to send. Quantities come from recent sales and the
+                supplier's lead time.
+              </p>
+              <Orders scope={scope} />
             </>
           )}
 

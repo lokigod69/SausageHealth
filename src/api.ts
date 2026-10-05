@@ -283,6 +283,13 @@ export type Reorder = {
   days_of_cover: number | null;
   alternative_name?: string;
   alternative_lead_days?: { min: number; max: number };
+  suggested_order: number | null;
+  contact: {
+    whatsapp: string | null;
+    viber: string | null;
+    messenger: string | null;
+    person: string | null;
+  } | null;
   buy_url: string | null;
   buy_kind: "listing" | "search" | null;
   buy_note: string | null;

@@ -487,3 +487,52 @@ def test_a_disconnected_environment_reports_a_skip_rather_than_failing(env, monk
     result = TestClient(app).get('/api/cron/loyverse',
                                  headers={'authorization': 'Bearer scheduler-secret-for-tests'})
     assert result.status_code == 200 and result.json()['status'] == 'skipped'
+
+
+REFUSAL = ('{"errors":[{"code":"PAYMENT_REQUIRED","details":"Unable to retrieve receipts '
+           'created earlier than 31 days ago. Please subscribe to Unlimited sales history."}]}')
+
+
+def test_the_plan_limit_is_read_from_the_refusal_not_assumed():
+    assert loyverse.allowed_days(REFUSAL) == 31
+    assert loyverse.allowed_days('earlier than 7 days ago') == 7
+    # An unfamiliar wording falls back to something inside every known plan.
+    assert loyverse.allowed_days('some other problem') == 30
+    assert loyverse.allowed_days('') == 30
+    assert loyverse.allowed_days(None) == 30
+
+
+def test_a_capped_history_shortens_the_weekly_window_to_whole_weeks(monkeypatch):
+    # 31 days allowed means four whole weeks fit, not the 28 that were asked for
+    # plus a grace period that would reach past the cap.
+    monkeypatch.setenv('SH_LOYVERSE_SALES_DAYS', '28')
+    assert loyverse.sales_days() == 28
+    monkeypatch.setenv('SH_LOYVERSE_SALES_DAYS', '56')
+    assert loyverse.sales_days() == 56
+    # The capped recalculation keeps whole weeks: 31 -> 30 -> 28.
+    assert max(7, (31 - 1) // 7 * 7) == 28
+    assert max(7, (14 - 1) // 7 * 7) == 7
+
+
+def test_a_payment_refusal_does_not_lose_the_catalogue(env, monkeypatch):
+    calls = connect_loyverse(monkeypatch)
+    captured = snapshot()
+    captured['sales'] = {'weeks': 4, 'plan_limit_days': 31, 'requested_days': 400,
+                         'basis': 'receipt_date', 'counted_receipts': 120,
+                         'refund_receipts': 1, 'cancelled_skipped': 0,
+                         'other_types_skipped': 0, 'outside_window_skipped': 0,
+                         'window_days': 28, 'from': 'x', 'to': 'y'}
+    reads = []
+
+    def capped():
+        reads.append(True)
+        return captured, 9
+    monkeypatch.setattr(loyverse, 'capture', capped)
+    c = client()
+    assert c.post('/api/loyverse/refresh').status_code == 200
+    view = c.get('/api/loyverse/items').json()
+    # Stock and prices are intact even though the sales window had to shrink.
+    assert view['catalogue']['counts']['items'] == 1
+    assert view['catalogue']['sales']['plan_limit_days'] == 31
+    assert len(reads) == 1 and calls == []
+

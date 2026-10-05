@@ -38,6 +38,26 @@ def whole_days(value, field):
     return value
 
 
+def phone(value, field):
+    """Normalised to digits for a wa.me link, but written however people write it.
+
+    Spaces, dashes, brackets and a leading plus are all ordinary ways to note a
+    number down, so they are accepted and stripped rather than rejected.
+    """
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    cleaned = ''.join(character for character in raw if character.isdigit())
+    if not cleaned or any(character not in '+-()/. ' and not character.isdigit()
+                          for character in raw):
+        raise ValueError(f'{field} must be a phone number, digits and separators only.')
+    if not 6 <= len(cleaned) <= 18:
+        raise ValueError(f'{field} must be 6 to 18 digits in international form.')
+    return cleaned
+
+
 def safe_url(value, field):
     """Only plain https links. A javascript: or data: href would be an injection."""
     if value is None:
@@ -84,7 +104,15 @@ def registry():
     for entry in parsed.get('suppliers') or []:
         if not isinstance(entry, dict) or not entry.get('id') or not entry.get('name'):
             raise ValueError('Every supplier needs an id and a name.')
+        contact = entry.get('contact') or {}
+        if not isinstance(contact, dict):
+            raise ValueError('A supplier contact must be an object.')
         supplier = {'id': str(entry['id']), 'name': str(entry['name'])[:80],
+                    'contact': {
+                        'whatsapp': phone(contact.get('whatsapp'), 'contact.whatsapp'),
+                        'viber': phone(contact.get('viber'), 'contact.viber'),
+                        'messenger': safe_url(contact.get('messenger'), 'contact.messenger'),
+                        'person': str(contact.get('person') or '')[:60] or None},
                     'note': str(entry.get('note') or '')[:200] or None,
                     'buffer_days': whole_days(entry.get('buffer_days', 0), 'buffer_days'),
                     'search_url': None, 'alternatives': parse_alternatives(
@@ -253,6 +281,8 @@ def assign(items, today, config=None):
                     entry['alternative_name'] = other['name']
                     entry['alternative_lead_days'] = other['lead_days']
                 entry.update(buying_links(config, supplier, variant, item))
+                entry['suggested_order'] = suggested_order(row, supplier)
+                entry['contact'] = supplier.get('contact')
                 assignments[key] = entry
     seen = {row['variant_id'] for row in unassigned}
     return {'assignments': assignments,
@@ -292,6 +322,41 @@ def buying_links(config, supplier, variant, item):
         resolved.append({'name': source['name'], 'url': url, 'note': source.get('note')})
     result['other_sources'] = resolved
     return result
+
+
+def suggested_order(row, supplier):
+    """What to add so the shelf reaches the cover period, rounded up.
+
+    None whenever the stock or the rate is unknown: a quantity guessed from a
+    missing figure is worse than no quantity at all.
+    """
+    import math
+    if row.get('stock_state') != 'tracked' or row.get('in_stock') is None:
+        return None
+    rate = row.get('sold_per_week')
+    if rate is None:
+        return None
+    try:
+        weekly, stock = float(rate), float(row['in_stock'])
+    except (TypeError, ValueError):
+        return None
+    if weekly <= 0:
+        return None
+    days = cover_period(supplier)
+    target = max(1, math.ceil(weekly / 7 * days))
+    missing = target - stock
+    return int(math.ceil(missing)) if missing > 0 else None
+
+
+def cover_period(supplier):
+    """Days of demand a shelf has to carry, independent of today's weekday."""
+    if supplier.get('cycle'):
+        cycle = supplier['cycle']
+        pipeline = ((cycle['delivery_weekday'] - cycle['order_weekday']) % 7
+                    + 7 * cycle['week_offset'])
+        return pipeline + 7 + supplier.get('buffer_days', 0)
+    lead = supplier.get('lead_days') or {}
+    return lead.get('max', 0) + supplier.get('buffer_days', 0)
 
 
 def cover(row):
