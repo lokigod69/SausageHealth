@@ -293,3 +293,39 @@ configuration value rather than a secret and is therefore reachable in
 principle, but this session's permission layer refuses production database
 access, and that refusal was not worked around. The owner has to either allow
 that access or enter the supplier in the order view himself.
+
+## 6 October 2026 · suppliers read live, and why sos cannot save
+
+The owner reported that choosing another supplier in Items did not save, and
+asked that the supplier list be current and have nothing to do with Loyverse.
+Locally the save itself worked every time, before and after reload, with a
+filter set or not; the cause on the live host was not observed from here.
+
+What was wrong regardless: the supplier list, the per-product choice and the
+order view were frozen into the catalogue stored at the last Loyverse read, so
+a supplier added in the app could not be picked and the order view ignored a
+choice until the next read. `latest()` now lays suppliers, hand-made choices
+and buying links over the stored rows on every read through the same
+`supplier_plan()` a sync uses. If those records cannot be read, stock and sales
+stay up with the stored advice and a note says why (our own message, or the
+error's type only). A failed choice now shows its reason on the row, and a
+supplier recorded in the order view regroups that view at once. Source
+**c30fec2**, 239 backend and 19 Node tests locally, build clean, verified in a
+local preview with the deployment's supplier configuration.
+
+**Not deployed.** The Vercel CLI on this machine (cached by npx, 62.2.0) answers
+"Not authorized", so it is no longer signed in; signing in is the owner's step.
+Pushing first failed too: git used the `moeses36` account. At the owner's
+request the GitHub CLI was switched to `lokigod69` and this repository now uses
+`gh auth git-credential`, which worked.
+
+**Found on the way:** the owner has added `sos.thesausageguy.shop` in Vercel and
+it serves the app, but `SH_ORIGIN` is still `https://ops.thesausageguy.shop`, so
+the origin guard refuses every write there with 403 "Please reload the app and
+try again." -- sign-in included, since the session cookie is host-only. Probed
+signed out with a refused request only; nothing was written. Either `SH_ORIGIN`
+moves to sos (and ops redirects to it), or the guard learns to accept both;
+that is the owner's choice.
+
+Exact next action: the owner signs the Vercel CLI in, then deploy c30fec2 and
+check Items on the live host; then decide ops versus sos for `SH_ORIGIN`.
