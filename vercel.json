@@ -21,6 +21,14 @@
       "schedule": "0 22 * * *"
     }
   ],
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [{ "type": "host", "value": "ops.thesausageguy.shop" }],
+      "destination": "https://sos.thesausageguy.shop/$1",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/storage",
