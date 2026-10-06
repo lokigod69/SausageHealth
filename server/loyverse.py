@@ -443,26 +443,37 @@ def build(stores, categories, items, inventory, mapping, money, sold=None, sales
             'variants': variants,
         })
     built.sort(key=lambda row: ((row['name'] or '').lower(), row['id']))
-    # Reordering advice needs the stock and weekly rate already on each row, so it
-    # runs as a second pass. Without a supplier registry there is simply no advice.
-    _, offset = performance.local_zone()
     # The shop's own recorded links take precedence over configured ones. They are
     # handed in rather than read here, so building a catalogue needs no database.
-    reorder = supplier_rules.assign(built, supplier_rules.today_local(offset),
-                                    config=registry, stored=stored_links, chosen=chosen)
-    for item_row in built:
-        for variant_row in item_row['variants']:
-            for store_row in variant_row['stores']:
-                store_row['reorder'] = (reorder['assignments'].get(
-                    (variant_row['variant_id'], store_row['store_id'])) if reorder else None)
+    supplier_section = supplier_plan(built, registry, stored_links, chosen)
     return {'schema_version': SCHEMA_VERSION, 'captured_at': now(), 'currency': money,
             'sales': sales, 'performance': trading, 'stores': store_rows,
-            'suppliers': {'known': reorder['suppliers'], 'unassigned': reorder['unassigned'],
-                          'unassigned_count': reorder['unassigned_count']} if reorder else None,
+            'suppliers': supplier_section,
             'unmatched_store_mapping': unmatched_mapping,
             'categories': sorted(({'id': key, 'name': value} for key, value in category_names.items()),
                                  key=lambda row: (row['name'] or '').lower()),
             'items': built, 'counts': counts(built, store_rows), 'limitations': LIMITATIONS}
+
+
+def supplier_plan(items, registry, stored_links, chosen):
+    """Lay supplier and reordering advice onto catalogue rows, in place.
+
+    It needs the stock and weekly rate already on each row, so it runs after the
+    rows are built. Without a supplier registry there is simply no advice.
+    Returns the catalogue's `suppliers` section.
+    """
+    _, offset = performance.local_zone()
+    reorder = supplier_rules.assign(items, supplier_rules.today_local(offset),
+                                    config=registry, stored=stored_links, chosen=chosen)
+    for item_row in items:
+        for variant_row in item_row['variants']:
+            for store_row in variant_row['stores']:
+                store_row['reorder'] = (reorder['assignments'].get(
+                    (variant_row['variant_id'], store_row['store_id'])) if reorder else None)
+    if not reorder:
+        return None
+    return {'known': reorder['suppliers'], 'unassigned': reorder['unassigned'],
+            'unassigned_count': reorder['unassigned_count']}
 
 
 def counts(items, store_rows):
@@ -548,6 +559,22 @@ def latest(user):
               'last_attempt': status_row(last), 'catalogue': None, 'captured_at': None}
     if stored:
         catalogue = json.loads(stored['payload'])
+        # Suppliers, hand-picked choices and buying links are the shop's records,
+        # not the POS's. They are laid over the stored rows on every read, so a
+        # supplier added or a choice made a minute ago shows at once rather than
+        # waiting for the next Loyverse read to be carried along with it.
+        try:
+            registry = shop_suppliers.merged(supplier_rules.registry())
+            links, chosen = item_links.listing(catalogue), item_suppliers.listing()
+        except Exception as problem:
+            # Stock and sales must not disappear because supplier records could
+            # not be read, so the rows keep the advice stored with them and the
+            # page says plainly that it is not current. Our own message is shown;
+            # anything else is named by type only, never by its text.
+            result['suppliers_stale'] = (str(problem) if isinstance(problem, ValueError)
+                                         else type(problem).__name__)
+        else:
+            catalogue['suppliers'] = supplier_plan(catalogue['items'], registry, links, chosen)
         result['catalogue'] = scope(catalogue, user)
         result['captured_at'] = catalogue['captured_at']
     return result

@@ -242,6 +242,74 @@ def test_refresh_stores_a_snapshot_and_audits_the_read(env, monkeypatch):
     assert 'loyverse.refreshed' in actions and 'loyverse.refresh_requested' in actions
 
 
+def stored_without_suppliers(monkeypatch):
+    """A read made before any supplier existed, as the morning's scheduled one was."""
+    monkeypatch.delenv('SH_LOYVERSE_SUPPLIERS', raising=False)
+    connect_loyverse(monkeypatch)
+    owner = client()
+    assert owner.post('/api/loyverse/refresh').status_code == 200
+    return owner
+
+
+def bakery(owner):
+    saved = owner.put('/api/shop-suppliers', json={'name': 'Night Bakery', 'lead_max': 1})
+    assert saved.status_code == 200
+    return saved.json()['id']
+
+
+def test_a_supplier_recorded_after_the_last_read_can_be_chosen_at_once(env, monkeypatch):
+    # The reported fault: a supplier added in the app was missing from the item
+    # list until Loyverse was read again, though Loyverse knows nothing of it.
+    owner = stored_without_suppliers(monkeypatch)
+    bakery(owner)
+    catalogue = owner.get('/api/loyverse/items').json()['catalogue']
+    assert [row['name'] for row in catalogue['suppliers']['known']] == ['Night Bakery']
+
+
+def test_a_choice_made_after_the_last_read_reaches_the_order_view_at_once(env, monkeypatch):
+    owner = stored_without_suppliers(monkeypatch)
+    supplier_id = bakery(owner)
+    chosen = owner.put('/api/item-suppliers',
+                       json={'variant_ids': ['variant-1'], 'supplier_id': supplier_id})
+    assert chosen.status_code == 200
+    reorder = only(owner.get('/api/loyverse/items').json()['catalogue'])['reorder']
+    assert reorder['supplier_name'] == 'Night Bakery' and reorder['by_hand'] is True
+
+
+def test_clearing_a_choice_takes_effect_without_another_read(env, monkeypatch):
+    owner = stored_without_suppliers(monkeypatch)
+    supplier_id = bakery(owner)
+    owner.put('/api/item-suppliers', json={'variant_ids': ['variant-1'], 'supplier_id': supplier_id})
+    owner.put('/api/item-suppliers', json={'variant_ids': ['variant-1'], 'supplier_id': None})
+    catalogue = owner.get('/api/loyverse/items').json()['catalogue']
+    # No rule matches the product, so with the choice gone it is unassigned again.
+    assert only(catalogue)['reorder'] is None
+    assert catalogue['suppliers']['unassigned_count'] == 1
+
+
+def test_unreadable_supplier_configuration_keeps_the_list_and_says_so(env, monkeypatch):
+    # Stock and sales must not vanish because supplier records could not be read.
+    owner = stored_without_suppliers(monkeypatch)
+    monkeypatch.setenv('SH_LOYVERSE_SUPPLIERS', 'not json')
+    listing = owner.get('/api/loyverse/items')
+    assert listing.status_code == 200
+    assert listing.json()['catalogue']['counts']['items'] == 1
+    assert listing.json()['suppliers_stale'] == 'SH_LOYVERSE_SUPPLIERS is not valid JSON.'
+
+
+def test_a_failed_supplier_read_is_named_by_type_never_by_its_text(env, monkeypatch):
+    from server import item_suppliers
+
+    def broken():
+        raise RuntimeError('detail that must not reach the browser')
+    owner = stored_without_suppliers(monkeypatch)
+    monkeypatch.setattr(item_suppliers, 'listing', broken)
+    listing = owner.get('/api/loyverse/items')
+    assert listing.status_code == 200
+    assert listing.json()['suppliers_stale'] == 'RuntimeError'
+    assert 'must not reach' not in listing.text
+
+
 def test_the_credential_never_appears_in_a_response(env, monkeypatch):
     connect_loyverse(monkeypatch)
     c = client()

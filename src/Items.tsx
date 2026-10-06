@@ -246,6 +246,10 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
   const [shown, setShown] = useState(PAGE);
   const [links, setLinks] = useState<Record<string, ItemLink>>({});
   const [chosen, setChosen] = useState<Record<string, string>>({});
+  // Why a choice did not save, kept on the row itself: the page-level message
+  // sits above a list several hundred rows long, out of sight of the person
+  // who just picked a supplier.
+  const [failed, setFailed] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [bulkTo, setBulkTo] = useState("");
@@ -307,14 +311,24 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
         }
         return next;
       });
+      setFailed((current) => {
+        const next = { ...current };
+        for (const id of variantIds) delete next[id];
+        return next;
+      });
       setNotice(
         variantIds.length === 1
-          ? "Supplier saved. The order view follows on the next refresh."
-          : `${variantIds.length} products assigned. The order view follows on the next refresh.`,
+          ? "Supplier saved."
+          : `${variantIds.length} products assigned.`,
       );
       setSelected([]);
     } catch (problem) {
-      setError((problem as Error).message);
+      const message = (problem as Error).message;
+      setError(message);
+      setFailed((current) => ({
+        ...current,
+        ...Object.fromEntries(variantIds.map((id) => [id, message])),
+      }));
     } finally {
       setAssigning(false);
     }
@@ -539,6 +553,13 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
             <p className="small-text amber-text">
               <CircleAlert size={13} /> Last attempt failed:{" "}
               {view.last_attempt.error}
+            </p>
+          )}
+          {view.suppliers_stale && (
+            <p className="small-text amber-text">
+              <CircleAlert size={13} /> Supplier records could not be read (
+              {view.suppliers_stale.replace(/\.$/, "")}). Suppliers shown are
+              from the last Loyverse read.
             </p>
           )}
         </div>
@@ -913,6 +934,7 @@ export function Items({ user, scope }: { user: User; scope: Store }) {
                                 known={knownSuppliers}
                                 canEdit={canEdit}
                                 pending={assigning}
+                                failed={failed[variant.variant_id]}
                                 onChoose={(supplierId) =>
                                   void assign([variant.variant_id], supplierId)
                                 }

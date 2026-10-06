@@ -4892,6 +4892,18 @@ legend {
 .supplier-saving {
   color: var(--mint);
 }
+.supplier-cell:has(.supplier-failed) {
+  flex-wrap: wrap;
+}
+.supplier-failed {
+  flex-basis: 100%;
+  max-width: 220px;
+  color: #efb39e;
+  line-height: 1.4;
+}
+[data-theme="light"] .supplier-failed {
+  color: #9c4327;
+}
 .bulk-assign {
   display: flex;
   flex-wrap: wrap;

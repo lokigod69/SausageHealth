@@ -41,7 +41,14 @@ function describe(supplier: ShopSupplier) {
  *  The configured ones are not shown or editable here: they are commercially
  *  sensitive and live in the host's encrypted configuration on purpose.
  */
-export function Suppliers({ canEdit }: { canEdit: boolean }) {
+export function Suppliers({
+  canEdit,
+  onChanged,
+}: {
+  canEdit: boolean;
+  /** Called after a supplier is saved, imported or removed. */
+  onChanged?: () => void;
+}) {
   const [rows, setRows] = useState<ShopSupplier[] | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<typeof EMPTY | null>(null);
@@ -90,6 +97,7 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
       });
       setForm(null);
       await load();
+      onChanged?.();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -112,6 +120,7 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
       setRows(rows);
       setPaste(null);
       setImported(`${rows.length} suppliers are now recorded here.`);
+      onChanged?.();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -126,6 +135,7 @@ export function Suppliers({ canEdit }: { canEdit: boolean }) {
         method: "DELETE",
       });
       await load();
+      onChanged?.();
     } catch (problem) {
       setError((problem as Error).message);
     }

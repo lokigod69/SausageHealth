@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Check,
+  CircleAlert,
   CircleHelp,
   Clipboard,
   ExternalLink,
@@ -137,6 +138,15 @@ export function Orders({ user, scope }: { user: User; scope: Store }) {
       live = false;
     };
   }, []);
+
+  /** Suppliers are the shop's own records, so a change to them shows at once. */
+  async function reload() {
+    try {
+      setView(await api<LoyverseView>("/loyverse/items"));
+    } catch (problem) {
+      setError((problem as Error).message);
+    }
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -276,6 +286,13 @@ export function Orders({ user, scope }: { user: User; scope: Store }) {
           {error}
         </div>
       )}
+      {view.suppliers_stale && (
+        <p className="small-text amber-text">
+          <CircleAlert size={13} /> Supplier records could not be read (
+          {view.suppliers_stale.replace(/\.$/, "")}). Suppliers shown are from
+          the last Loyverse read.
+        </p>
+      )}
 
       {groups.length === 0 ? (
         <div className="items-panel">
@@ -362,7 +379,10 @@ export function Orders({ user, scope }: { user: User; scope: Store }) {
         </div>
       )}
 
-      <Suppliers canEdit={user.role === "owner" || user.role === "manager"} />
+      <Suppliers
+        canEdit={user.role === "owner" || user.role === "manager"}
+        onChanged={reload}
+      />
       <div className="items-limits">
         <h3>
           <CircleHelp size={15} /> How these quantities are worked out

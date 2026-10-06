@@ -15,6 +15,7 @@ export function SupplierCell({
   known,
   canEdit,
   pending,
+  failed,
   onChoose,
 }: {
   reorder: Reorder | null;
@@ -22,10 +23,11 @@ export function SupplierCell({
   known: KnownSupplier[];
   canEdit: boolean;
   pending: boolean;
+  failed?: string;
   onChoose: (supplierId: string) => void;
 }) {
-  // A choice saved in this session is shown at once; the stored catalogue only
-  // catches up on the next sync, and waiting for that would look broken.
+  // A choice saved here is shown at once; the catalogue the page loaded only
+  // carries it from the next time the page is opened.
   const effective = chosen ?? reorder?.supplier_id ?? "";
   const byHand = chosen !== undefined || reorder?.by_hand;
   const name =
@@ -65,6 +67,11 @@ export function SupplierCell({
           <Hand size={12} />
         </span>
       ) : null}
+      {failed && (
+        <small className="supplier-failed" role="alert">
+          Not saved: {failed}
+        </small>
+      )}
     </span>
   );
 }

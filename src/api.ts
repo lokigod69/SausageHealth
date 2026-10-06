@@ -426,6 +426,9 @@ export type LoyverseView = {
   } | null;
   catalogue: LoyverseCatalogue | null;
   captured_at: string | null;
+  /** Set when the shop's supplier records could not be read just now, so the
+   *  supplier advice shown is the one stored with the last Loyverse read. */
+  suppliers_stale?: string;
 };
 
 /** Thousands separators for readability. The value itself is never rounded. */

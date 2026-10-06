@@ -98,21 +98,23 @@ SHIPPED = {
 }
 
 
-def shipped():
+def shipped(catalogue=None):
     """The shipped links against today's variant ids, resolved through the catalogue.
 
     An unknown SKU simply does not appear: a link that cannot be tied to a
-    variant is better absent than attached to the wrong one.
+    variant is better absent than attached to the wrong one. A caller already
+    holding the stored catalogue hands it in rather than having it read twice.
     """
     if not SHIPPED:
         return {}
-    with connect() as db:
-        stored = db.execute("""SELECT payload FROM loyverse_syncs
-            WHERE status='complete' AND payload IS NOT NULL
-            ORDER BY started_at DESC LIMIT 1""").fetchone()
-    if not stored:
-        return {}
-    catalogue = json.loads(stored['payload'])
+    if catalogue is None:
+        with connect() as db:
+            stored = db.execute("""SELECT payload FROM loyverse_syncs
+                WHERE status='complete' AND payload IS NOT NULL
+                ORDER BY started_at DESC LIMIT 1""").fetchone()
+        if not stored:
+            return {}
+        catalogue = json.loads(stored['payload'])
     found = {}
     for item in catalogue.get('items') or []:
         for variant in item.get('variants') or []:
@@ -127,12 +129,12 @@ def shipped():
     return found
 
 
-def listing():
+def listing(catalogue=None):
     """Every link for a variant: what the shop recorded, over what ships with us."""
     with connect() as db:
         recorded = {entry['variant_id']: row(entry)
                     for entry in db.execute('SELECT * FROM item_links')}
-    for variant_id, entry in shipped().items():
+    for variant_id, entry in shipped(catalogue).items():
         recorded.setdefault(variant_id, entry)
     return recorded
 
